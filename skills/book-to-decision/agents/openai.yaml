@@ -1,0 +1,13 @@
+interface:
+  display_name: 工具书蒸馏与决策准备
+  short_description: 将工具书重构为长期可调用的情境知识，比较方法与边界，由人决策
+  default_prompt: 使用 $book-to-decision 将这本工具书蒸馏为可复用的决策知识库。
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true
