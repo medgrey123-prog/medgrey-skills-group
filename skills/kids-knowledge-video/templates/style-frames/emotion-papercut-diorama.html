@@ -1,0 +1,82 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0}canvas{display:block}</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="common.js"></script><script src="emo.js"></script>
+<script>
+// 纸雕层叠·情绪 — layered paper diorama, child figure, stacked paper flames cooled by blue paper breath ribbons.
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');const {W,H}=Q;const UI=location.search.includes('ui=1');
+const N=Q.makeNoise(21);
+const grain=document.createElement('canvas');grain.width=512;grain.height=512;{const g=grain.getContext('2d');const id=g.createImageData(512,512),d=id.data;const r=Q.rng(9);
+ for(let y=0;y<512;y++)for(let x=0;x<512;x++){const i=(y*512+x)*4;const v=200+N.fbm(x/18,y/18,3)*40+(r()-.5)*30+N.n(x/2,y/60)*10;d[i]=d[i+1]=d[i+2]=v;d[i+3]=255;}g.putImageData(id,0,0);}
+let pat=null;
+function paper(path,col,depth=10,edge=true){
+  ctx.save();ctx.shadowColor='rgba(40,25,30,.32)';ctx.shadowBlur=depth*2.2;ctx.shadowOffsetX=depth*.35;ctx.shadowOffsetY=depth*.9;path();ctx.fillStyle=col;ctx.fill();ctx.restore();
+  ctx.save();path();ctx.clip();ctx.globalCompositeOperation='multiply';ctx.globalAlpha=.2;ctx.fillStyle=pat;ctx.fillRect(0,0,W,H);ctx.restore();
+  if(edge){ctx.save();path();ctx.clip();ctx.translate(2,2.5);path();ctx.lineWidth=3;ctx.strokeStyle='rgba(255,255,255,.3)';ctx.stroke();ctx.restore();}}
+function wave(y0,amp,f,ph,col,depth){paper(()=>{ctx.beginPath();ctx.moveTo(-40,H+40);for(let x=-40;x<=W+40;x+=8)ctx.lineTo(x,y0+Math.sin(x/f+ph)*amp+Math.sin(x/(f*.37)+ph*1.7)*amp*.3);ctx.lineTo(W+40,H+40);ctx.closePath();},col,depth);}
+function flame(cx,by,w,h,wob,ph){ctx.beginPath();const n=60;for(let i=0;i<=n;i++){const u=i/n,a=u*Math.PI*2;// teardrop with wavy tongues
+  const yy=by-h*(1-Math.cos(a))/2;const ww=w*Math.sin(Math.PI*(1-Math.cos(a))/2*.97+.03);const tongue=Math.sin(u*Math.PI*6+ph)*wob*(1-Math.cos(a))/2;
+  const x=cx+Math.sin(a)*(ww+tongue);i?ctx.lineTo(x,yy):ctx.moveTo(x,yy);}ctx.closePath();}
+function ribbon(pts,w0,w1){ctx.beginPath();const L=pts.length;const side=s=>{const out=[];for(let i=0;i<L;i++){const a=pts[Math.max(0,i-1)],b=pts[Math.min(L-1,i+1)];const dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1;const w=w0+(w1-w0)*i/(L-1);out.push([pts[i][0]-dy/l*w*s,pts[i][1]+dx/l*w*s]);}return out;};
+  const A=side(1),B=side(-1).reverse();[...A,...B].forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.closePath();}
+window.render=function(t){
+  ctx.setTransform(1,0,0,1,0,0);if(!pat)pat=ctx.createPattern(grain,'repeat');
+  let g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#f7e3cf');g.addColorStop(.55,'#efc9b4');g.addColorStop(1,'#c9c4d8');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.save();ctx.globalCompositeOperation='multiply';ctx.globalAlpha=.25;ctx.fillStyle=pat;ctx.fillRect(0,0,W,H);ctx.restore();
+  // distant paper clouds/hills dusk
+  [[900,330,70]].forEach(([x,y,r],i)=>paper(()=>{ctx.beginPath();ctx.arc(x,y,r,0,7);},'#fbeee0',6));
+  wave(1150,40,230,.6,'#e8b9a6',8);wave(1230,36,190,2.2,'#d79e95',11);
+  const cx=540,feet=1395,head=870;const k=Math.sin(t*2)*4;
+  // stacked paper flames rising from chest (hot)
+  const heat=1-Q.seg(t,2,8)*.6;
+  [[300,640,'#f6c25a',26,22],[245,560,'#f29a45',22,18],[190,470,'#ea6a3c',18,14],[135,370,'#d9443a',14,10],[80,250,'#b8303a',10,6]].forEach(([w,h,c,wob,d],i)=>paper(()=>flame(cx,1080,w*(.85+.15*heat),h*(.8+.2*heat)+k*(i+1),wob,t*2+i),c,d));
+  // cool tide rising inside the flame (breath cooling it down)
+  {const tide=1080-Q.ease(Q.seg(t,1.5,7))*480;ctx.save();flame(cx,1080,300*(.85+.15*heat),640*(.8+.2*heat)+k,26,t*2);ctx.clip();
+   [['#a9cde8',0,12],['#7fb0db',30,8]].forEach(([c,o,d])=>paper(()=>{ctx.beginPath();ctx.moveTo(0,1200);for(let x=0;x<=W;x+=10)ctx.lineTo(x,tide+o+Math.sin(x/40+t*2+o)*12);ctx.lineTo(W,1200);ctx.closePath();},c,d));ctx.restore();}
+  // child (paper)
+  // legs
+  paper(()=>{ctx.beginPath();ctx.roundRect(cx-60,1220,44,170,16);ctx.roundRect(cx+16,1220,44,170,16);},'#3a4a6b',10);
+  paper(()=>{ctx.beginPath();ctx.ellipse(cx-44,1392,46,20,0,0,7);ctx.ellipse(cx+44,1392,46,20,0,0,7);},'#2b2b3a',8);
+  // arms
+  paper(()=>{ctx.beginPath();ctx.moveTo(cx-120,1000);ctx.quadraticCurveTo(cx-185,1110,cx-160,1200);ctx.lineTo(cx-122,1196);ctx.quadraticCurveTo(cx-140,1110,cx-86,1020);ctx.closePath();},'#2f8f8a',12);
+  paper(()=>{ctx.beginPath();ctx.moveTo(cx+120,1000);ctx.quadraticCurveTo(cx+185,1110,cx+160,1200);ctx.lineTo(cx+122,1196);ctx.quadraticCurveTo(cx+140,1110,cx+86,1020);ctx.closePath();},'#2f8f8a',12);
+  paper(()=>{ctx.beginPath();ctx.arc(cx-142,1206,24,0,7);ctx.arc(cx+142,1206,24,0,7);},'#f4c6a5',8);
+  // sweater
+  paper(()=>{ctx.beginPath();ctx.moveTo(cx-80,975);ctx.quadraticCurveTo(cx,955,cx+80,975);ctx.quadraticCurveTo(cx+135,995,cx+140,1060);ctx.lineTo(cx+125,1245);ctx.quadraticCurveTo(cx,1262,cx-125,1245);ctx.lineTo(cx-140,1060);ctx.quadraticCurveTo(cx-135,995,cx-80,975);ctx.closePath();},'#38a39b',16);
+  paper(()=>{ctx.beginPath();ctx.roundRect(cx-125,1200,250,38,8);},'#2a7f79',5,false);
+  // heart cut-out on chest: glowing ember core
+  paper(()=>{ctx.beginPath();const s=1.15+.05*Math.sin(t*3);ctx.save();ctx.translate(cx,1090);ctx.scale(s,s);ctx.moveTo(0,22);ctx.bezierCurveTo(-60,-14,-34,-58,0,-30);ctx.bezierCurveTo(34,-58,60,-14,0,22);ctx.restore();},'#f06a3c',6);
+  // neck + head
+  paper(()=>{ctx.beginPath();ctx.roundRect(cx-26,920,52,60,12);},'#e9b38f',6);
+  paper(()=>{ctx.beginPath();ctx.ellipse(cx,head,92,100,0,0,7);},'#f6caa8',14);
+  paper(()=>{ctx.beginPath();ctx.ellipse(cx-92,head+14,18,26,0,0,7);ctx.ellipse(cx+92,head+14,18,26,0,0,7);},'#f0bb98',6,false);
+  // hair: rounded cap with scalloped fringe
+  paper(()=>{ctx.beginPath();ctx.moveTo(cx-98,head+24);ctx.bezierCurveTo(cx-118,head-120,cx+118,head-120,cx+98,head+24);
+    ctx.quadraticCurveTo(cx+90,head-24,cx+60,head-34);for(let i=0;i<4;i++){const x1=cx+60-(i+1)*30;ctx.quadraticCurveTo(x1+15,head-8,x1,head-34);}ctx.quadraticCurveTo(cx-90,head-30,cx-98,head+24);ctx.closePath();},'#3b2730',10);
+  paper(()=>{ctx.beginPath();ctx.moveTo(cx+6,head-96);ctx.quadraticCurveTo(cx+30,head-140,cx+58,head-122);ctx.quadraticCurveTo(cx+30,head-118,cx+18,head-94);ctx.closePath();},'#3b2730',4,false);
+  // face (closed eyes breathing in, cheeks)
+  ctx.strokeStyle='#3b2730';ctx.lineWidth=5;ctx.lineCap='round';[[cx-34,head+16],[cx+34,head+16]].forEach(([x,y])=>{ctx.beginPath();ctx.arc(x,y-6,14,.2*Math.PI,.8*Math.PI);ctx.stroke();});
+  ctx.fillStyle='rgba(232,110,100,.45)';[[cx-54,head+44],[cx+54,head+44]].forEach(([x,y])=>{ctx.beginPath();ctx.ellipse(x,y,16,10,0,0,7);ctx.fill();});
+  ctx.beginPath();ctx.moveTo(cx-12,head+56);ctx.quadraticCurveTo(cx,head+62,cx+12,head+56);ctx.stroke();
+  ctx.textAlign='left';
+  // blue breath ribbons: paper wind curl from the child's mouth out to the left (breathing out)
+  const bp=Q.eo(Q.seg(t,.5,3));const SC=[265,800],a0=.62,r0=215;
+  const sp=u=>{const a=a0+u*Math.PI*2.1,r=r0*(1-.72*u);return [SC[0]+Math.cos(a)*r*1.0,SC[1]+Math.sin(a)*r];};
+  [[ '#b5d4ec',0,18,1.0],[ '#7aaad6',1,12,.94],[ '#4f82c0',2,8,.88]].forEach(([c,j,d,ext])=>{const pts=[];const n=Math.floor(90*bp*ext)+2;for(let i=0;i<n;i++){const u=i/89;const p=sp(u);pts.push([p[0]+j*8,p[1]+j*10]);}
+    paper(()=>ribbon(pts,22-j*4,6+j),c,d);});
+  const cnt=Q.clamp(Math.floor(Q.seg(t,1.5,6.5)*5)+1,1,5);
+  for(let i=0;i<5;i++){const u=.1+i*.18;const [px,py]=sp(u);const a=a0+u*Math.PI*2.1;const x=px,y=py;const on=i<cnt;
+    paper(()=>{ctx.beginPath();ctx.arc(x,y,32,0,7);},on?'#fffaf2':'#efe4de',on?14:4);
+    ctx.font='800 32px "Noto Sans CJK SC"';ctx.textAlign='center';ctx.fillStyle=on?'#3c6fb0':'#b6aaa6';ctx.fillText(i+1,x,y+11);}
+  ctx.textAlign='left';
+  // foreground paper hills (cool, calm)
+  wave(1400,22,170,.3,'#8fa3c9',14);wave(1520,18,220,1.4,'#6b7fb0',18);
+  // title card
+  paper(()=>{ctx.beginPath();ctx.roundRect(60,110,640,330,18);},'#fffaf1',16);
+  ctx.font='700 26px "Noto Sans CJK SC"';ctx.fillStyle='#d0603e';ctx.fillText('情绪与相处 · 第 1 集',100,180);
+  ctx.font='900 84px "Noto Serif CJK SC"';ctx.fillStyle='#2b2620';ctx.fillText('生气的时候',100,290);ctx.fillText('怎么办？',100,395);
+  // tag
+  ctx.font='700 28px "Noto Sans CJK SC"';const tx='心里的小火苗',tw=ctx.measureText(tx).width+40;paper(()=>{ctx.beginPath();ctx.roundRect(770,540,tw,54,8);},'#fffaf0',8);ctx.fillStyle='#c8402e';ctx.fillText(tx,790,578);
+  ctx.font='800 48px "Noto Sans CJK SC"';ctx.fillStyle='#fffaf0';ctx.fillText('深呼吸，数到五',80,1555);ctx.font='500 36px "Noto Sans CJK SC"';ctx.fillText('火苗会慢慢安静下来',80,1612);
+  if(UI)Q.ui(ctx,false);
+};
+</script></body></html>

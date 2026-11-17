@@ -1,0 +1,34 @@
+{
+  "title": "生气的时候怎么办",
+  "category": "emotion",
+  "age": "大班-六年级",
+  "core_idea": "生气时可以先停一停、深呼吸、再说出来；生气不是坏事。",
+  "hook": "小朋友，你有没有生过气呀？",
+  "analogy": "生气的时候，身体里会冒出一团火。火可以慢慢变小。",
+  "structure": [
+    "先问有没有生过气",
+    "身体信号（脸、拳头、心跳）",
+    "接纳：生气不是坏事",
+    "三步：停一停 / 深呼吸 / 说出来",
+    "闪卡复习"
+  ],
+  "steps": [
+    {
+      "zh": "停一停",
+      "sub": "先停下来，不动手"
+    },
+    {
+      "zh": "深呼吸",
+      "sub": "吸——呼——数到五"
+    },
+    {
+      "zh": "说出来",
+      "sub": "我很生气，因为……"
+    }
+  ],
+  "validation": "生气不是坏事，每个人都会生气。",
+  "style": "watercolor-book",
+  "target_seconds": 30,
+  "music_mood": "tender picture-book, felt piano, acoustic guitar, lullaby, no drums",
+  "notes": "不要责备或禁止生气；数数要放慢。"
+}

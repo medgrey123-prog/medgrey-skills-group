@@ -1,0 +1,99 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;overflow:hidden}canvas{position:absolute;left:0;top:0;width:1080px;height:1920px}</style>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script></head>
+<body><canvas id="gl" width="1080" height="1920"></canvas><canvas id="c" width="1080" height="1920"></canvas>
+<script src="common.js"></script>
+<script type="module">
+// Style: 玻璃与黏土 — soft 3D studio: real glass prism (transmission + dispersion), clay leaf, soft shadows, bloom. three.js.
+import * as THREE from 'three';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
+const {W,H}=Q;const UI=location.search.includes('ui=1');
+const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('gl'),antialias:true,preserveDrawingBuffer:true});
+renderer.setSize(W,H,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.92;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.VSMShadowMap;
+const scene=new THREE.Scene();
+// background: soft studio gradient
+const bgc=document.createElement('canvas');bgc.width=8;bgc.height=512;{const b=bgc.getContext('2d');const g=b.createLinearGradient(0,0,0,512);g.addColorStop(0,'#f1e6da');g.addColorStop(.5,'#e6d8ec');g.addColorStop(1,'#cddcec');b.fillStyle=g;b.fillRect(0,0,8,512);}
+const bgt=new THREE.CanvasTexture(bgc);bgt.colorSpace=THREE.SRGBColorSpace;scene.background=bgt;
+const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture;scene.environmentIntensity=.55;
+const cam=new THREE.PerspectiveCamera(30,W/H,.1,100);cam.position.set(0,0,14);cam.lookAt(0,0,0);
+// lights
+const key=new THREE.DirectionalLight(0xfff3e6,1.5);key.position.set(-5,8,7);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.radius=14;key.shadow.blurSamples=20;
+Object.assign(key.shadow.camera,{left:-6,right:6,top:8,bottom:-8,near:1,far:30});scene.add(key);
+scene.add(new THREE.HemisphereLight(0xfff8f0,0xc8d8ff,.6));
+// shadow catcher wall
+const wall=new THREE.Mesh(new THREE.PlaneGeometry(30,40),new THREE.ShadowMaterial({opacity:.16,color:0x40305a}));wall.position.z=-2.6;wall.receiveShadow=true;scene.add(wall);
+// glass prism
+const prismGeo=new THREE.CylinderGeometry(.62,.62,1.1,3,1);prismGeo.rotateX(Math.PI/2);
+const glass=new THREE.MeshPhysicalMaterial({color:0xf4f8ff,transparent:true,opacity:.42,roughness:.02,metalness:0,clearcoat:1,iridescence:.8,iridescenceIOR:1.3,envMapIntensity:3,specularIntensity:1,side:THREE.DoubleSide,depthWrite:false});
+const prism=new THREE.Mesh(prismGeo,glass);prism.position.set(-.8,1.2,.4);prism.rotation.set(-.12,.32,Math.PI+.12);prism.castShadow=true;scene.add(prism);prism.add(new THREE.LineSegments(new THREE.EdgesGeometry(prismGeo),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:.9})));
+// clay leaf (extruded + bent)
+const L=2.9,Wd=1.0;const sh=new THREE.Shape();sh.moveTo(0,0);sh.bezierCurveTo(L*.18,Wd*1.05,L*.62,Wd*1.0,L,0);sh.bezierCurveTo(L*.62,-Wd,L*.18,-Wd*1.05,0,0);
+const lg=new THREE.ExtrudeGeometry(sh,{depth:.06,bevelEnabled:true,bevelThickness:.05,bevelSize:.05,bevelSegments:6,curveSegments:64,steps:1});
+lg.translate(-L/2,0,0);{const p=lg.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i);p.setZ(i,p.getZ(i)-.10*x*x-.32*y*y+.12*Math.sin(x*2));}lg.computeVertexNormals();}
+// leaf texture: veins + chloroplast speckle, used as color + bump
+const lt=document.createElement('canvas');lt.width=1024;lt.height=1024;{const c=lt.getContext('2d');const g=c.createLinearGradient(0,0,1024,1024);g.addColorStop(0,'#5cc05a');g.addColorStop(1,'#1f7f43');c.fillStyle=g;c.fillRect(0,0,1024,1024);
+ const r=Q.rng(4);for(let i=0;i<3000;i++){c.fillStyle=`rgba(${30+r()*40},${120+r()*60},60,.18)`;c.beginPath();c.ellipse(r()*1024,r()*1024,4+r()*6,3+r()*4,r()*3,0,7);c.fill();}
+ // veins in UV space: extrude UVs = shape coords; map x[0..L]->[0..1024], y[-Wd..Wd]
+ c.save();c.translate(0,512);c.scale(1024/L,512/Wd);c.strokeStyle='rgba(225,255,200,.85)';c.lineCap='round';
+ c.beginPath();c.moveTo(0,0);c.bezierCurveTo(L*.18,Wd*1.05,L*.62,Wd*1.0,L,0);c.bezierCurveTo(L*.62,-Wd,L*.18,-Wd*1.05,0,0);c.clip();
+ // soft darker rim toward the edges
+ c.lineWidth=.02;c.strokeStyle='rgba(225,255,200,.75)';c.beginPath();c.moveTo(0,0);c.quadraticCurveTo(L*.5,.04,L,0);c.stroke();
+ c.lineWidth=.012;for(let i=1;i<=8;i++){const x=L*(i/9.5);for(const sg of[-1,1]){c.beginPath();c.moveTo(x,0);c.quadraticCurveTo(x+L*.08,sg*Wd*.35,x+L*.2,sg*Wd*.9);c.stroke();}}
+ c.restore();}
+const ltex=new THREE.CanvasTexture(lt);ltex.colorSpace=THREE.SRGBColorSpace;
+// ExtrudeGeometry UV = raw shape coords -> remap via texture transform
+ltex.repeat.set(1/L,1/(2*Wd));ltex.offset.set(0,.5);ltex.wrapS=ltex.wrapT=THREE.ClampToEdgeWrapping;
+const clay=new THREE.MeshPhysicalMaterial({map:ltex,roughness:.55,sheen:.6,sheenColor:new THREE.Color(0xb8f0a0),sheenRoughness:.6,clearcoat:.15,clearcoatRoughness:.5,
+  transmission:.0,emissive:new THREE.Color(0x0a3a12),emissiveIntensity:.15});
+const leaf=new THREE.Mesh(lg,clay);leaf.castShadow=true;leaf.receiveShadow=true;
+const leafG=new THREE.Group();leafG.add(leaf);leafG.position.set(.25,-.75,0);leafG.rotation.set(-.35,.25,.55);scene.add(leafG);
+// stem
+const stem=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(-L/2,0,0),new THREE.Vector3(-L/2-.4,-.15,.05),new THREE.Vector3(-L/2-.75,-.5,.1)]),20,.045,8),new THREE.MeshPhysicalMaterial({color:0x4f9a52,roughness:.5,sheen:1}));
+stem.castShadow=true;leafG.add(stem);
+// beams
+function beam(color,width,opacity,add=false){const m=new THREE.MeshBasicMaterial({color:new THREE.Color(color),transparent:true,opacity,blending:add?THREE.AdditiveBlending:THREE.NormalBlending,depthWrite:false,toneMapped:false});
+  const g=new THREE.CylinderGeometry(1,1,1,24,1,true);g.translate(0,.5,0);g.rotateX(Math.PI/2);const mesh=new THREE.Mesh(g,m);mesh.userData.w=width;scene.add(mesh);return mesh;}
+function aim(mesh,a,b,p){const d=new THREE.Vector3().subVectors(b,a);const l=d.length()*p;mesh.position.copy(a);mesh.lookAt(b);mesh.scale.set(mesh.userData.w,mesh.userData.w,Math.max(l,1e-3));}
+const halo=(c,w,o)=>[beam(c,w*3.5,o*.22,true),beam(c,w,o)];
+const white=halo(0xfffdf6,.028,.95);
+const R=halo(0xff3b2f,.016,.95),G=halo(0x22d655,.016,.95),B=halo(0x2f5bff,.016,.95);
+const faint=[0xffa23a,0xfff04a,0x3ae0ff,0x8a5bff].map(c=>beam(c,.008,.5));
+const gtc=document.createElement('canvas');gtc.width=gtc.height=128;{const c=gtc.getContext('2d');const g=c.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.2,'rgba(255,255,255,.7)');g.addColorStop(1,'rgba(255,255,255,0)');c.fillStyle=g;c.fillRect(0,0,128,128);}
+const gtex=new THREE.CanvasTexture(gtc);
+function glowDot(c,s){const m=new THREE.Sprite(new THREE.SpriteMaterial({map:gtex,color:c,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false,toneMapped:false}));scene.add(m);return m;}
+const dotR=glowDot(0xff5a40),dotB=glowDot(0x5a7bff),dotG=glowDot(0x60ff80);
+const comp=new EffectComposer(renderer);comp.setSize(W,H);comp.addPass(new RenderPass(scene,cam));
+const bloom=new UnrealBloomPass(new THREE.Vector2(W,H),.45,.4,.95);comp.addPass(bloom);comp.addPass(new OutputPass());
+// overlay text
+const oc=document.getElementById('c').getContext('2d');
+function leafPoint(u,v){const x=-L/2+L*u,y=v;const z=-.10*x*x-.32*y*y+.12*Math.sin(x*2)+.11;return leaf.localToWorld(new THREE.Vector3(x,y,z));}
+window.render=async function(t){
+  leafG.rotation.z=.55+.03*Math.sin(t*1.2);prism.rotation.y=.32+.04*Math.sin(t*.8);scene.updateMatrixWorld(true);
+  const pIn=Q.eo(Q.seg(t,0,1.2)),pFan=Q.eo(Q.seg(t,1,2.4)),pRef=Q.eo(Q.seg(t,3,4.2)),pAbs=Q.seg(t,2.2,3.2);
+  const pin=prism.position.clone().add(new THREE.Vector3(-.25,.02,.15)),pout=prism.position.clone().add(new THREE.Vector3(.3,-.12,.15));
+  const src=new THREE.Vector3(-4.5,2.9,1.0);white.forEach(m=>aim(m,src,pin,pIn));
+  const hR=leafPoint(.80,.15),hG=leafPoint(.52,.05),hB=leafPoint(.30,-.05);
+  [[R,hR],[G,hG],[B,hB]].forEach(([b,h])=>b.forEach(m=>aim(m,pout,h,pFan)));
+  [leafPoint(.70,.1),leafPoint(.62,.08),leafPoint(.42,0),leafPoint(.2,-.08)].forEach((h,i)=>aim(faint[i],pout,h,pFan));
+  dotR.position.copy(hR);dotB.position.copy(hB);const s=.55+.12*Math.sin(t*6);dotR.scale.setScalar(s*pAbs+1e-3);dotB.scale.setScalar(s*pAbs+1e-3);
+  // reflected green towards camera-left-bottom
+  if(!window._gr){window._gr=halo(0x22d655,.024,1);}const gEnd=new THREE.Vector3(-2.6,-.55,1.0);window._gr.forEach(m=>aim(m,hG,gEnd,pRef));dotG.position.copy(hG);dotG.scale.setScalar(.5*Q.eo(Q.seg(t,2.8,3.2))+1e-3);
+  comp.render();
+  // 2D overlay
+  oc.clearRect(0,0,W,H);
+  oc.font='600 28px "Noto Sans CJK SC"';oc.fillStyle='rgba(60,50,80,.55)';oc.fillText('趣米 · 科学实验室   01',80,170);
+  oc.font='900 96px "Noto Sans CJK SC"';oc.fillStyle='#2a2238';oc.fillText('叶子为什么',80,290);oc.fillText('是绿的？',80,400);
+  const lab=(p,txt,col,dx,dy,a)=>{const v=p.clone().project(cam);let x=(v.x*.5+.5)*W,y=(-v.y*.5+.5)*H;x=Math.max(60-dx,x);oc.globalAlpha=a;
+    oc.font='700 28px "Noto Sans CJK SC"';const w=oc.measureText(txt).width+40;oc.fillStyle='rgba(255,255,255,.78)';oc.beginPath();oc.roundRect(x+dx,y+dy-38,w,54,27);oc.fill();
+    oc.fillStyle=col;oc.beginPath();oc.arc(x+dx+20,y+dy-11,7,0,7);oc.fill();oc.fillStyle='#2a2238';oc.fillText(txt,x+dx+34,y+dy);oc.globalAlpha=1;};
+  lab(hR,'红光 被吸收','#ff4a3a',30,-70,pAbs);lab(hB,'蓝光 被吸收','#3d6bff',-270,90,pAbs);
+  lab(gEnd.clone().lerp(hG,.55),'绿光 被弹回','#25c050',-300,0,pRef);
+  oc.font='700 46px "Noto Sans CJK SC"';oc.fillStyle='#2a2238';oc.fillText('叶子不要绿光，',80,1520);
+  oc.fillStyle='#1fa64a';oc.fillText('绿光',80,1585);const w=oc.measureText('绿光').width;oc.fillStyle='#2a2238';oc.fillText('就弹进了我们的眼睛',80+w,1585);
+  if(UI)Q.ui(oc,false);
+};
+window.ready=Promise.resolve();
+</script></body></html>

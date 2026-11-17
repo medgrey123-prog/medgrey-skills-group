@@ -1,0 +1,94 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;overflow:hidden}canvas{position:absolute;left:0;top:0;width:1080px;height:1920px}</style>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script></head>
+<body><canvas id="gl" width="1080" height="1920"></canvas><canvas id="c" width="1080" height="1920"></canvas>
+<script src="common.js"></script>
+<script type="module">
+// 柔光黏土 3D — Pixar-ish soft clay child holding a little glowing flame; blue breath wisps cool it. three.js (CPU swiftshader).
+import * as THREE from 'three';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
+const {W,H}=Q;const UI=location.search.includes('ui=1');
+const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('gl'),antialias:true,preserveDrawingBuffer:true});
+renderer.setSize(W,H,false);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.82;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.VSMShadowMap;
+const scene=new THREE.Scene();
+const bgc=document.createElement('canvas');bgc.width=8;bgc.height=512;{const b=bgc.getContext('2d');const g=b.createLinearGradient(0,0,0,512);g.addColorStop(0,'#f6dccb');g.addColorStop(.55,'#ead2e0');g.addColorStop(1,'#c9d6ef');b.fillStyle=g;b.fillRect(0,0,8,512);}
+const bgt=new THREE.CanvasTexture(bgc);bgt.colorSpace=THREE.SRGBColorSpace;scene.background=bgt;
+const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(new RoomEnvironment(),0.04).texture;scene.environmentIntensity=.6;
+const cam=new THREE.PerspectiveCamera(28,W/H,.1,100);cam.position.set(0,.4,20);cam.lookAt(0,-.4,0);
+const key=new THREE.DirectionalLight(0xfff0e0,1.6);key.position.set(-5,8,8);key.castShadow=true;key.shadow.mapSize.set(2048,2048);key.shadow.radius=16;key.shadow.blurSamples=20;
+Object.assign(key.shadow.camera,{left:-6,right:6,top:8,bottom:-8,near:1,far:30});scene.add(key);
+const rim=new THREE.DirectionalLight(0xbfd4ff,1.2);rim.position.set(6,3,-4);scene.add(rim);
+scene.add(new THREE.HemisphereLight(0xfff6ee,0xc9d6ff,.55));
+const wall=new THREE.Mesh(new THREE.PlaneGeometry(40,40),new THREE.ShadowMaterial({opacity:.14,color:0x50304a}));wall.position.z=-3;wall.receiveShadow=true;scene.add(wall);
+const clay=(c,r=.62,sheen=0)=>new THREE.MeshPhysicalMaterial({color:c,roughness:r,metalness:0,sheen:sheen,sheenColor:new THREE.Color(0xffffff),sheenRoughness:.6,clearcoat:.05});
+const kid=new THREE.Group();scene.add(kid);kid.position.set(0,-1.15,0);kid.scale.setScalar(.92);kid.rotation.y=-.22;
+const add=(geo,mat,p,s=[1,1,1],r=[0,0,0],par=kid)=>{const m=new THREE.Mesh(geo,mat);m.position.set(...p);m.scale.set(...s);m.rotation.set(...r);m.castShadow=true;m.receiveShadow=true;par.add(m);return m;};
+const skin=clay(0xf2c3a2,.55),sweater=clay(0x3d7fc4,.85,.35),hairM=clay(0x3a2826,.5),dark=clay(0x2b1d1d,.4),blush=new THREE.MeshPhysicalMaterial({color:0xff8a8a,roughness:.6,transparent:true,opacity:.55});
+// body (lathe: soft bell)
+const prof=[];for(let i=0;i<=24;i++){const u=i/24;prof.push(new THREE.Vector2(.05+1.55*Math.pow(Math.sin(Math.min(1,u*1.4)*Math.PI*.5),.7)*(1+.06*u),-u*5+0.2));}
+const bodyGeo=new THREE.LatheGeometry(prof.map(v=>new THREE.Vector2(Math.max(.01,v.x),v.y)).reverse(),64);
+add(bodyGeo,sweater,[0,0,0],[1,1,.82]);
+// collar
+add(new THREE.TorusGeometry(.42,.12,24,48),clay(0x2f6aa8,.85,.35),[0,.12,0],[1,1,1],[Math.PI/2,0,0]);
+// head
+const head=new THREE.Group();kid.add(head);head.position.set(0,1.55,0);head.rotation.set(.12,0,0);
+add(new THREE.SphereGeometry(1.32,64,48),skin,[0,0,0],[1,.94,.95],[0,0,0],head);
+add(new THREE.SphereGeometry(.26,32,24),skin,[-1.28,-.05,0],[.6,1,1],[0,0,0],head);add(new THREE.SphereGeometry(.26,32,24),skin,[1.28,-.05,0],[.6,1,1],[0,0,0],head);
+// hair cap + fringe lumps
+add(new THREE.SphereGeometry(1.4,64,48,0,Math.PI*2,0,Math.PI*.52),hairM,[0,.1,-.05],[1,.98,1],[-.32,0,0],head);
+add(new THREE.SphereGeometry(1.05,48,32),hairM,[-.25,.62,.62],[1.05,.42,.62],[.25,-.15,.28],head);add(new THREE.SphereGeometry(.8,48,32),hairM,[.55,.66,.6],[1,.38,.6],[.3,.2,-.32],head);
+add(new THREE.SphereGeometry(.22,24,16),hairM,[.15,1.45,0],[.8,1.2,.8],[0,0,-.5],head);
+// closed eyes (arcs), nose, mouth, cheeks
+for(const s of[-1,1]){add(new THREE.TorusGeometry(.2,.045,16,32,Math.PI),dark,[s*.48,-.02,1.2],[1,1,1],[0,s*.35,Math.PI],head);
+  add(new THREE.SphereGeometry(.2,24,16),blush,[s*.78,-.32,1.0],[1,.6,.4],[0,s*.6,0],head);}
+add(new THREE.SphereGeometry(.12,24,16),clay(0xeeae8c,.55),[0,-.22,1.28],[1,.85,.9],[0,0,0],head);
+add(new THREE.SphereGeometry(.1,24,16),clay(0x9a4040,.5),[0,-.55,1.18],[1,1.1,.6],[0,0,0],head); // little "o" mouth breathing out
+// arms holding forward
+for(const s of[-1,1]){const arm=add(new THREE.CapsuleGeometry(.3,1.1,12,24),sweater,[s*1.12,-.65,.55],[1,1,1],[1.0,0,s*.55]);
+  add(new THREE.SphereGeometry(.3,24,16),skin,[s*.55,-1.0,1.25],[1,.9,1]);}
+// little flame held in hands (emissive teardrop lathe) – "心里的小火苗"
+const heat=1;// size factor set per frame
+const fl=[];for(let i=0;i<=40;i++){const u=i/40;fl.push(new THREE.Vector2(Math.max(.001,Math.sin(Math.PI*Math.pow(u,.75))*.62*(1-u*.35)),u*1.9-.5));}
+const flameGeo=new THREE.LatheGeometry(fl,48);
+const flame=new THREE.Group();kid.add(flame);flame.position.set(0,-.55,1.55);
+const fOuter=new THREE.Mesh(flameGeo,new THREE.MeshStandardMaterial({color:0xff7a2a,emissive:0xff3a10,emissiveIntensity:1.1,transparent:true,opacity:.92,roughness:.4}));flame.add(fOuter);
+const fInner=new THREE.Mesh(flameGeo,new THREE.MeshStandardMaterial({color:0xffd070,emissive:0xffa020,emissiveIntensity:1.4,roughness:.3}));fInner.scale.set(.55,.6,.55);fInner.position.y=-.15;flame.add(fInner);
+const fl1=new THREE.PointLight(0xff7030,6,6,1.6);fl1.position.set(0,.3,.3);flame.add(fl1);
+// flame face (soft dots) – friendly
+for(const s of[-1,1])add(new THREE.SphereGeometry(.05,16,12),dark,[s*.16,.25,.5],[1,1.3,.6],[0,0,0],flame);
+// blue breath wisps: tubes from mouth to flame + bubbles
+const breath=new THREE.Group();scene.add(breath);
+const bm=new THREE.MeshPhysicalMaterial({color:0x6fb0ff,emissive:0x2f70e0,emissiveIntensity:.5,transparent:true,opacity:.6,roughness:.2,transmission:0});
+const bubbles=[];{const r=Q.rng(3);for(let i=0;i<12;i++){const m=new THREE.Mesh(new THREE.SphereGeometry(.04+r()*.06,16,12),bm);breath.add(m);bubbles.push([m,r(),r(),r()]);}}
+const tubes=[];
+const comp=new EffectComposer(renderer);comp.setSize(W,H);comp.addPass(new RenderPass(scene,cam));
+const bloom=new UnrealBloomPass(new THREE.Vector2(W,H),.4,.45,.82);comp.addPass(bloom);comp.addPass(new OutputPass());
+const c2=document.getElementById('c'),ctx=c2.getContext('2d');
+function wp(obj,x=0,y=0,z=0){const v=new THREE.Vector3(x,y,z);obj.localToWorld(v);return v;}
+window.render=async function(t){
+  const cool=Q.ease(Q.seg(t,1.5,7));const s=1-cool*.45;flame.scale.set(s,s*(1+.04*Math.sin(t*6)),s);
+  fOuter.material.color.setHSL(.04,1,.5);fl1.intensity=6*s;
+  scene.updateMatrixWorld(true);
+  const mouth=wp(head,0,-.55,1.25),fpos=wp(flame,0,.4,0);
+  tubes.forEach(m=>{breath.remove(m);m.geometry.dispose();});tubes.length=0;
+  for(let k=0;k<3;k++){const pts=[];for(let i=0;i<=20;i++){const u=i/20;const p=mouth.clone().lerp(fpos,u);p.x+=Math.sin(u*Math.PI)*(-.9+k*.5)+Math.sin(u*9+t*3+k)*.08;p.z+=Math.sin(u*Math.PI)*.9;p.y+=Math.sin(u*Math.PI)*(.2+k*.15);pts.push(p);}
+    const m=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),48,.03-k*.006,10,false),bm);breath.add(m);tubes.push(m);}
+  bubbles.forEach(([m,a,b,c])=>{const u=.15+((a+t*.25)%1)*.8;const p=mouth.clone().lerp(fpos,u);p.x+=Math.sin(u*Math.PI)*(-.9+b*1.0)+(c-.5)*.4;p.z+=Math.sin(u*Math.PI)*.9;p.y+=Math.sin(u*Math.PI)*(.2+b*.3);m.position.copy(p);});
+  comp.render();
+  // 2D overlay
+  ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,W,H);
+  ctx.textAlign='left';ctx.font='600 28px "Plus Jakarta Sans","Noto Sans CJK SC"';ctx.fillStyle='rgba(80,60,90,.6)';ctx.fillText('趣米 · 情绪小剧场 01',80,170);
+  ctx.font='900 94px "Noto Sans CJK SC"';ctx.fillStyle='#2a1f2e';ctx.fillText('生气的时候',80,290);ctx.fillText('怎么办？',80,402);
+  // breath count pills
+  const cnt=Q.clamp(Math.floor(Q.seg(t,1.5,6.5)*5)+1,1,5);
+  for(let i=0;i<5;i++){const x=80+i*84,y=480;const on=i<cnt;ctx.fillStyle=on?'#4f8fe0':'rgba(255,255,255,.6)';ctx.beginPath();ctx.roundRect(x,y,68,68,34);ctx.fill();
+    ctx.font='800 34px "Plus Jakarta Sans"';ctx.textAlign='center';ctx.fillStyle=on?'#fff':'rgba(60,60,90,.4)';ctx.fillText(i+1,x+34,y+46);}
+  ctx.textAlign='left';ctx.font='500 28px "Noto Sans CJK SC"';ctx.fillStyle='rgba(60,80,140,.85)';ctx.fillText('轻轻吹气，数到五',80+5*84+10,524);
+  ctx.fillStyle='rgba(255,255,255,.82)';ctx.beginPath();ctx.roundRect(56,1452,700,170,36);ctx.fill();ctx.font='800 48px "Noto Sans CJK SC"';ctx.fillStyle='#2a1f2e';ctx.fillText('火苗没有坏，',90,1520);ctx.fillStyle='#3b78d0';ctx.fillText('它只是需要你帮它降降温',90,1588);
+  if(UI)Q.ui(ctx,false);
+};
+window.ready=Promise.resolve();
+</script></body></html>

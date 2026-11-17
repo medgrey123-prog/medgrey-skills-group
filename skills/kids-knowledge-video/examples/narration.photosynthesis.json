@@ -1,0 +1,14 @@
+{
+ "_template": "母版 A · 猜谜概念片（儿童 30 秒竖屏改编）",
+ "voice": {"engine": "edge-tts", "id": "zh-CN-XiaoyiNeural", "rate": "-4%", "pitch": "+0Hz"},
+ "lexicon": {},
+ "beats": [
+  {"id": "B01", "narration": "小朋友，树叶为什么是[[green]]绿色的呢？"},
+  {"id": "B02", "narration": "白白的阳光里，其实藏着[[rainbow]]彩虹的好多颜色。"},
+  {"id": "B03", "narration": "叶子里住着好多小帮手，[[chl]]叫叶绿素。"},
+  {"id": "B04", "narration": "它们最爱吸收[[red]]红光和[[blue]]蓝光。"},
+  {"id": "B05", "narration": "绿光吸收得最少，[[bounce]]被叶子弹了回来，[[eye]]跑进我们的眼睛。"},
+  {"id": "B06", "narration": "所以，我们看到的叶子，[[green]]就是绿色的！"},
+  {"id": "B07", "narration": "吸收的阳光，帮叶子[[food]]做出养料，[[grow]]大树就一天天长高啦。"}
+ ]
+}

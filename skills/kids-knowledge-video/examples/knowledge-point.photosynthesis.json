@@ -1,0 +1,37 @@
+{
+  "title": "叶子为什么是绿的",
+  "category": "science",
+  "age": "大班-六年级",
+  "core_idea": "叶子看起来是绿色，是因为绿光几乎没被吸收，被弹回了我们的眼睛。",
+  "hook": "小朋友，树叶为什么是绿色的呢？",
+  "analogy": "叶子里住着许多叫叶绿素的小帮手，它们爱吃红光和蓝光。",
+  "structure": [
+    "提问",
+    "白光里藏着彩虹",
+    "叶绿素吸收红光和蓝光",
+    "绿光弹回眼睛",
+    "所以叶子是绿的",
+    "吸收的光还能做成养料"
+  ],
+  "flashcards": [
+    {
+      "zh": "叶绿素",
+      "py": "yè lǜ sù",
+      "note": "叶子里的小帮手"
+    },
+    {
+      "zh": "阳光",
+      "py": "yáng guāng",
+      "note": "里面藏着很多颜色"
+    },
+    {
+      "zh": "养料",
+      "py": "yǎng liào",
+      "note": "叶子用光做的食物"
+    }
+  ],
+  "end_line": "红光蓝光被吃掉，绿光被叶子弹回来",
+  "style": "cinematic-light",
+  "target_seconds": 30,
+  "music_mood": "cinematic wonder, felt piano, warm strings, harp, no drums"
+}

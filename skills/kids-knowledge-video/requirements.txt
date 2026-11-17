@@ -1,0 +1,15 @@
+# 画面渲染
+playwright>=1.40.0
+
+# 旁白
+edge-tts>=6.1.0
+numpy>=1.26.0
+
+# 混音
+soundfile>=0.12.0
+
+# 配乐（MusicGen，CPU 可跑）以及可选的 AST 标签检查
+# 模型权重要另行下载；MusicGen-small 为 CC-BY-NC 4.0
+torch>=2.1.0
+transformers>=4.40.0
+scipy>=1.11.0

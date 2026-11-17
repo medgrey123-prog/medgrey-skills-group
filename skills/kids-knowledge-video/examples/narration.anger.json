@@ -1,0 +1,79 @@
+{
+ "voice": {
+  "engine": "edge-tts",
+  "id": "zh-CN-XiaoxiaoNeural",
+  "rate": "-5%",
+  "pitch": "+0Hz"
+ },
+ "beats": [
+  {
+   "id": "B01",
+   "narration": "小朋友，你有没有[[hook]]生过气呀？",
+   "gap": 0.35
+  },
+  {
+   "id": "B02",
+   "narration": "生气的时候，[[face]]脸会发烫，[[fist]]拳头会握紧，[[heart]]心怦怦跳得好快，",
+   "gap": 0.1
+  },
+  {
+   "id": "B03",
+   "narration": "就像身体里，[[flame]]冒出了一团火。",
+   "gap": 0.35
+  },
+  {
+   "id": "B04",
+   "narration": "其实，[[ok]]生气不是坏事，每个人都会生气。",
+   "gap": 0.35
+  },
+  {
+   "id": "B05",
+   "narration": "先[[stop]]停一停，",
+   "gap": 0.2
+  },
+  {
+   "id": "B06",
+   "narration": "再慢慢[[breath]]深呼吸，",
+   "gap": 0.3
+  },
+  {
+   "id": "N1",
+   "narration": "一，",
+   "gap": 0.32
+  },
+  {
+   "id": "N2",
+   "narration": "二，",
+   "gap": 0.32
+  },
+  {
+   "id": "N3",
+   "narration": "三，",
+   "gap": 0.32
+  },
+  {
+   "id": "N4",
+   "narration": "四，",
+   "gap": 0.32
+  },
+  {
+   "id": "N5",
+   "narration": "五。",
+   "gap": 0.3
+  },
+  {
+   "id": "B07",
+   "narration": "火苗[[small]]慢慢变小了。",
+   "gap": 0.3
+  },
+  {
+   "id": "B08",
+   "narration": "然后，[[say]]说出感受：[[quote]]我很生气，因为……",
+   "gap": 0.4
+  },
+  {
+   "id": "B09",
+   "narration": "记住：[[c1]]停一停，[[c2]]深呼吸，[[c3]]说出来！"
+  }
+ ]
+}

@@ -1,0 +1,67 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0}canvas{display:block}</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="common.js"></script><script src="emo.js"></script>
+<script>
+// 孔版印刷 Riso — 3 spot inks (fluoro pink / blue / yellow), halftone, misregistration, editorial grid.
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');const {W,H}=Q;const UI=location.search.includes('ui=1');
+const INK={pink:[255,72,176],blue:[0,120,191],yellow:[255,220,0]};
+const paperC=Q.paper(W,H,[245,241,232],12,.6);
+function mk(){const c=document.createElement('canvas');c.width=W;c.height=H;return c;}
+const L={pink:mk(),blue:mk(),yellow:mk()};
+function cr(pts){// closed catmull-rom path
+  const p=new Path2D();const n=pts.length;p.moveTo(...pts[0]);for(let i=0;i<n;i++){const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];
+  p.bezierCurveTo(p1[0]+(p2[0]-p0[0])/6,p1[1]+(p2[1]-p0[1])/6,p2[0]-(p3[0]-p1[0])/6,p2[1]-(p3[1]-p1[1])/6,p2[0],p2[1]);}p.closePath();return p;}
+const prof=cr([[735,1080],[770,900],[730,700],[620,620],[505,660],[455,760],[440,820],[400,868],[438,898],[428,926],[452,962],[492,1002],[560,1022],[566,1068],[430,1150],[360,1300],[345,1480],[950,1480],[930,1260],[860,1130]]);
+function halftone(src,col,cell,ang,dx,dy){const s=src.getContext('2d').getImageData(0,0,W,H).data;ctx.save();ctx.globalCompositeOperation='multiply';ctx.fillStyle=`rgb(${col})`;
+  const ca=Math.cos(ang),sa=Math.sin(ang);const R=Math.hypot(W,H);ctx.beginPath();
+  for(let v=-R;v<R;v+=cell)for(let u=-R;u<R;u+=cell){const x=W/2+u*ca-v*sa,y=H/2+u*sa+v*ca;if(x<0||y<0||x>=W||y>=H)continue;const d=s[((y|0)*W+(x|0))*4+3]/255;if(d<.03)continue;
+    const r=cell*.72*Math.sqrt(d);ctx.moveTo(x+dx+r,y+dy);ctx.arc(x+dx,y+dy,r,0,7);}
+  ctx.fill();ctx.restore();}
+function solid(src,col,dx,dy,alpha=.92){ctx.save();ctx.globalCompositeOperation='multiply';ctx.globalAlpha=alpha;const t=mk(),c=t.getContext('2d');c.drawImage(src,0,0);c.globalCompositeOperation='source-in';c.fillStyle=`rgb(${col})`;c.fillRect(0,0,W,H);ctx.drawImage(t,dx,dy);ctx.restore();}
+window.render=function(t){
+  ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;ctx.filter='none';
+  ctx.drawImage(paperC,0,0);
+  for(const k in L)L[k].getContext('2d').clearRect(0,0,W,H);
+  const Y=L.yellow.getContext('2d'),B=L.blue.getContext('2d'),P=L.pink.getContext('2d');
+  // ---- halftone layers (density maps)
+  // yellow: big sun disc behind head + gradient
+  let g=Y.createRadialGradient(640,820,40,640,820,380);g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,.35)');Y.fillStyle=g;Y.beginPath();Y.arc(640,820,380,0,7);Y.fill();
+  // blue: body silhouette with gradient (deeper at bottom = calm settling)
+  const tide=1500-Q.ease(Q.seg(t,1.5,7))*700;
+  g=B.createLinearGradient(0,620,0,1480);g.addColorStop(0,'rgba(0,0,0,.18)');g.addColorStop(Q.clamp((tide-620)/940),'rgba(0,0,0,.25)');g.addColorStop(Math.min(1,Q.clamp((tide-620)/940)+.08),'rgba(0,0,0,.85)');g.addColorStop(1,'rgba(0,0,0,1)');
+  B.fillStyle=g;B.fill(prof);B.save();B.globalCompositeOperation='destination-out';let fg=B.createLinearGradient(0,1300,0,1480);fg.addColorStop(0,'rgba(0,0,0,0)');fg.addColorStop(1,'rgba(0,0,0,1)');B.fillStyle=fg;B.fillRect(0,1300,W,500);B.restore();
+  // pink: heat rising inside, clipped to silhouette, strongest in chest/head above tide
+  P.save();P.clip(prof);g=P.createLinearGradient(0,tide,0,620);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(.25,'rgba(0,0,0,.9)');g.addColorStop(1,'rgba(0,0,0,.55)');P.fillStyle=g;P.fillRect(0,600,W,tide-600);P.restore();
+  halftone(L.yellow,INK.yellow,8,.0,0,0);halftone(L.blue,INK.blue,7,.26,0,0);halftone(L.pink,INK.pink,7,.79,3,-2);
+  // ---- solid ink layers (lines/shapes), slightly misregistered
+  for(const k in L)L[k].getContext('2d').clearRect(0,0,W,H);
+  // pink zigzag heat lines rising inside/above head
+  P.lineWidth=12;P.lineJoin='miter';P.lineCap='butt';P.strokeStyle='#000';
+  for(let j=0;j<4;j++){const x0=560+j*60;P.beginPath();for(let i=0;i<8;i++){const y=1040-i*70-((t*60)%70);const x=x0+(i%2?22:-22);i?P.lineTo(x,y):P.moveTo(x,y);}P.stroke();}
+  // sparks above head
+  {const r=Q.rng(4);for(let i=0;i<14;i++){const x=540+r()*280,y=500+r()*80;P.save();P.translate(x,y);P.rotate(r()*3);P.fillRect(-14,-3,28,6);P.restore();}}
+  // blue breath waves from mouth to the left, with numbers
+  B.strokeStyle='#000';B.lineCap='round';
+  for(let j=0;j<5;j++){B.lineWidth=10-j;B.beginPath();for(let x=400;x>=70;x-=6){const u=(400-x)/330;const y=930+j*44-u*60*j*.4+Math.sin(x/38+t*2+j)*(10+u*22);x===400?B.moveTo(x,y):B.lineTo(x,y);}B.stroke();}
+  const cnt=Q.clamp(Math.floor(Q.seg(t,1.5,6.5)*5)+1,1,5);
+  B.font='800 64px "Space Grotesk"';B.fillStyle='#000';B.textAlign='center';
+  for(let i=0;i<5;i++){const x=110+i*62,y=1210-i*0;B.globalAlpha=i<cnt?1:.25;B.fillText(i+1,x,y);}B.globalAlpha=1;
+  B.fillRect(80,1240,(5*62-10)*(cnt/5),8);
+  // eye + mouth in blue solid
+  B.beginPath();B.arc(520,830,10,0,7);B.fill();B.lineWidth=6;B.beginPath();B.moveTo(486,800);B.quadraticCurveTo(512,786,536,800);B.stroke();
+  // editorial grid lines (blue thin)
+  B.lineWidth=2;B.beginPath();B.moveTo(80,470);B.lineTo(940,470);B.moveTo(80,1290);B.lineTo(330,1290);B.stroke();
+  B.font='600 26px "Space Grotesk"';B.textAlign='left';B.fillText('FIG. 1 — ANGER (HOT)',80,505);B.fillText('FIG. 2 — BREATHE (COOL)',80,1330);
+  // title in blue ink, kicker in pink
+  P.font='700 28px "Space Grotesk"';P.fillStyle='#000';P.fillText('FEELINGS  N°01  ·  认识情绪',80,170);
+  B.font='900 100px "Noto Sans CJK SC"';B.fillText('生气的时候',80,300);B.fillText('怎么办？',80,418);
+  P.font='900 100px "Noto Sans CJK SC"';P.fillText('？',80+B.measureText('怎么办').width,418);
+  solid(L.yellow,INK.yellow,0,0);solid(L.blue,INK.blue,0,0);solid(L.pink,INK.pink,4,-3,.9);
+  // caption (dark ink = blue+pink overprint look)
+  ctx.font='800 50px "Noto Sans CJK SC"';ctx.fillStyle='rgb(40,30,110)';ctx.fillText('慢慢呼气，数到五',80,1540);ctx.font='500 36px "Noto Sans CJK SC"';ctx.fillText('身体里的热会一点点降下来',80,1600);
+  // ink texture: random white specks + grain
+  {const r=Q.rng(8);ctx.fillStyle='rgba(245,241,232,.85)';for(let i=0;i<2600;i++){ctx.fillRect(r()*W,r()*H,r()*2.2+.5,r()*2.2+.5);}}
+  Q.grain(ctx,18,3);
+  if(UI)Q.ui(ctx,false);
+};
+</script></body></html>

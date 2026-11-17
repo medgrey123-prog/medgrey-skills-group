@@ -1,0 +1,57 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0}canvas{display:block}</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="common.js"></script><script src="emo.js"></script>
+<script>
+// 情绪色场 — minimal abstract: emotion as a grainy-gradient shape (spiky hot -> round cool), breathing ring, keynote type.
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');const {W,H}=Q;const UI=location.search.includes('ui=1');
+const N=Q.makeNoise(8);
+const O={x:520,y:960,r:255};
+function orbPath(c,t,calm){c.beginPath();const n=360;for(let i=0;i<=n;i++){const a=i/n*Math.PI*2-Math.PI/2;
+  // spikiness strongest at top (a=-PI/2), fades towards bottom; calm reduces it overall
+  const top=Math.pow(Q.clamp((Math.cos(a+Math.PI/2)+1)/2),1.6);// 1 at top, 0 bottom
+  const hot=Q.clamp(top*1.25-calm*.9+.05);
+  const tri=1-Math.abs(((a*11/Math.PI+t*.6)%2+2)%2-1)*2;const spike=Math.pow(Q.clamp(tri),2.2)*.34+(N.n(Math.cos(a)*3+t,Math.sin(a)*3)-.5)*.08;
+  const breathe=1+.03*Math.sin(t*1.6);
+  const r=O.r*breathe*(1+hot*spike);c.lineTo(O.x+Math.cos(a)*r,O.y+Math.sin(a)*r);}c.closePath();}
+window.render=function(t){
+  ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-over';ctx.filter='none';ctx.globalAlpha=1;
+  // mesh-like background: warm top, cool bottom, very soft
+  ctx.fillStyle='#f3ece6';ctx.fillRect(0,0,W,H);
+  const blob=(x,y,r,col)=>{const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,col);g.addColorStop(1,'rgba(243,236,230,0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);};
+  blob(900,380,760,'rgba(255,170,140,.55)');blob(120,1500,900,'rgba(150,185,240,.55)');blob(980,1500,600,'rgba(200,180,240,.4)');
+  const calm=Q.ease(Q.seg(t,1.5,7))*.55;
+  // halo
+  ctx.save();ctx.filter='blur(60px)';orbPath(ctx,t,calm);let g=ctx.createLinearGradient(0,O.y-O.r*1.3,0,O.y+O.r);g.addColorStop(0,'rgba(255,90,50,.55)');g.addColorStop(1,'rgba(80,140,255,.45)');ctx.fillStyle=g;ctx.fill();ctx.restore();
+  // orb body
+  ctx.save();orbPath(ctx,t,calm);ctx.clip();
+  const split=O.y+O.r*(.9-calm*1.6); // cool fills from bottom
+  g=ctx.createLinearGradient(0,O.y-O.r*1.3,0,O.y+O.r);
+  const s=Q.clamp((split-(O.y-O.r*1.3))/(O.r*2.3));
+  g.addColorStop(0,'#ffcf6b');g.addColorStop(Math.max(0,s-.35),'#ff7a3d');g.addColorStop(Math.max(0,s-.08),'#f0443a');g.addColorStop(Math.min(1,s+.12),'#8a7bd8');g.addColorStop(1,'#4d8ff0');
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // volume: highlight + core shadow
+  let rg=ctx.createRadialGradient(O.x-110,O.y-140,10,O.x-60,O.y-80,O.r*1.1);rg.addColorStop(0,'rgba(255,255,255,.38)');rg.addColorStop(.35,'rgba(255,255,255,.08)');rg.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=rg;ctx.fillRect(0,0,W,H);
+  rg=ctx.createRadialGradient(O.x+60,O.y+120,O.r*.5,O.x+40,O.y+80,O.r*1.35);rg.addColorStop(0,'rgba(60,30,120,0)');rg.addColorStop(1,'rgba(60,30,120,.18)');ctx.fillStyle=rg;ctx.fillRect(0,0,W,H);
+  // inner glow line at the hot/cool boundary
+  ctx.globalCompositeOperation='screen';ctx.filter='blur(30px)';ctx.fillStyle='rgba(255,200,230,.35)';ctx.fillRect(0,split-50,W,60);ctx.filter='none';
+  ctx.restore();
+  // breathing ring with 5 beads
+  const cnt=Q.clamp(Math.floor(Q.seg(t,1.5,6.5)*5)+1,1,5);const RR=O.r+120;
+  ctx.save();ctx.strokeStyle='rgba(40,40,70,.14)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(O.x,O.y,RR,0,7);ctx.stroke();
+  const prog=Q.seg(t,1.5,6.5);ctx.strokeStyle='rgba(60,110,220,.85)';ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.arc(O.x,O.y,RR,-Math.PI/2,-Math.PI/2+prog*Math.PI*2);ctx.stroke();
+  for(let i=0;i<5;i++){const a=-Math.PI/2+(i+1)/5*Math.PI*2-.0001;const x=O.x+Math.cos(a)*RR,y=O.y+Math.sin(a)*RR;const on=i<cnt;
+    ctx.fillStyle=on?'#3c6edc':'#f3ece6';ctx.strokeStyle=on?'#3c6edc':'rgba(40,40,70,.25)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,on?13:10,0,7);ctx.fill();ctx.stroke();
+    ctx.font='500 26px "IBM Plex Mono"';ctx.fillStyle=on?'rgba(40,70,160,.9)':'rgba(40,40,70,.35)';ctx.textAlign='center';ctx.fillText(i+1,O.x+Math.cos(a)*(RR+44),O.y+Math.sin(a)*(RR+44)+9);}
+  ctx.restore();
+  // big thin numeral inside orb
+  ctx.save();ctx.textAlign='center';ctx.font='200 240px "Outfit"';ctx.fillStyle='rgba(255,255,255,.92)';ctx.fillText(String(cnt),O.x,O.y+130);ctx.restore();
+  // side annotations
+  ctx.save();ctx.font='500 26px "IBM Plex Mono"';ctx.fillStyle='rgba(200,70,40,.85)';ctx.fillText('HOT · 生气',700,600);ctx.fillStyle='rgba(50,90,200,.85)';ctx.fillText('COOL · 平静',80,1400);ctx.restore();
+  // type
+  ctx.textAlign='left';ctx.font='500 28px "IBM Plex Mono"';ctx.fillStyle='rgba(60,50,70,.55)';ctx.fillText('FEELINGS  /  01',80,170);
+  ctx.font='900 96px "Noto Sans CJK SC"';ctx.fillStyle='#1d1a24';ctx.fillText('生气的时候',80,290);ctx.fillText('怎么办？',80,404);
+  ctx.font='700 50px "Noto Sans CJK SC"';const c1='吸气，数到五',c2='  尖尖的变圆了';ctx.fillStyle='#3c6edc';ctx.fillText(c1,80,1540);const w1=ctx.measureText(c1).width;ctx.fillStyle='#1d1a24';ctx.fillText(c2,80+w1,1540);
+  Q.grain(ctx,22,5);
+  if(UI)Q.ui(ctx,false);
+};
+</script></body></html>

@@ -1,0 +1,84 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="common.js"></script><script src="emo.js"></script>
+<script>
+// 水彩绘本 — premium picture-book: paper grain, layered watercolor washes, gouache child, pencil line.
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');const {W,H}=Q;const UI=location.search.includes('ui=1');
+const paper=Q.paper(W,H,[246,239,226],5,1.1);
+const ell=(cx,cy,rx,ry,n,r,irr=.2)=>{const p=[];for(let i=0;i<n;i++){const a=i/n*6.283,k=1+(r()-.5)*irr;p.push([cx+Math.cos(a)*rx*k,cy+Math.sin(a)*ry*k]);}return p;};
+const flameP=(cx,by,w,h,n,r)=>{const p=[];for(let i=0;i<n;i++){const a=i/n*6.283;const s=Math.sin(a),c=Math.cos(a);// teardrop pointing up
+  const y=by-h*(1-c)/2, ww=w*Math.pow(Math.sin(Math.PI*(1-c)/2*0.98+0.02),1.2)*(c>0?1:.9);p.push([cx+s*ww*(1+(r()-.5)*.3),y+(r()-.5)*20]);}return p;};
+function wob(pts,amt,seed){return Q.deform(pts,2,amt,Q.rng(seed));}
+function poly(c,p){c.beginPath();p.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));c.closePath();}
+function pencil(c,p,seed,col='rgba(60,45,40,.75)',w=2.2,closed=true){const r=Q.rng(seed);for(let k=0;k<2;k++){c.beginPath();p.forEach((q,i)=>{const x=q[0]+(r()-.5)*2.2,y=q[1]+(r()-.5)*2.2;i?c.lineTo(x,y):c.moveTo(x,y);});if(closed)c.closePath();c.strokeStyle=col;c.lineWidth=w*(k?.6:1);c.stroke();}}
+// cache washes (static per scene; animation would blend between caches)
+const layer=document.createElement('canvas');layer.width=W;layer.height=H;
+function buildWashes(cool){const c=layer.getContext('2d');c.clearRect(0,0,W,H);c.globalCompositeOperation='multiply';
+  const r=Q.rng(11);
+  // sky wash: soft warm glaze top-right, cool glaze lower-left
+  Q.wash(c,ell(260,1180,330,240,10,r),'#c4d6e6',55,r,.02,.7);
+  // anger: several flame tongues rising from the chest, glazed warm-to-hot
+  [[560,1110,300,720,'#f2a764',.02],[520,1090,170,560,'#ec7a4a',.022],[610,1095,180,620,'#e8643f',.022],[560,1080,150,470,'#d93d31',.024],[575,1060,80,300,'#b8262b',.022]].forEach(([x,y,w,hh,col,al])=>Q.wash(c,flameP(x,y,w,hh,16,r),col,60,r,al,.42,.9));
+  Q.wash(c,ell(565,760,60,80,10,r),'#f6d27e',40,r,.03,.5);
+  // cool breath glaze pooling around the child's lower body
+  Q.wash(c,ell(520,1160,250,140,12,r),'#7eaed8',60,r,.022,.55,.9);
+  Q.wash(c,ell(470,1200,170,90,12,r),'#6a98c8',45,r,.016,.5,.9);
+  // ground
+  Q.wash(c,ell(540,1398,400,34,14,r,.1),'#b3c094',50,r,.022,.35);
+  // paint splatter
+  for(let i=0;i<70;i++){const x=380+r()*360,y=420+r()*560,rr=r()*5+1;c.fillStyle=`rgba(${200+r()*40|0},${70+r()*60|0},50,${.25+r()*.4})`;c.beginPath();c.arc(x,y,rr,0,7);c.fill();}
+  for(let i=0;i<40;i++){const x=150+r()*400,y=980+r()*300,rr=r()*4+1;c.fillStyle=`rgba(90,140,200,${.25+r()*.35})`;c.beginPath();c.arc(x,y,rr,0,7);c.fill();}
+}
+buildWashes();
+function child(c,t){const cx=540,head=905;const R=Q.rng(4);
+  const fill=(p,col,seed,line=true)=>{const q=wob(p,.02,seed);poly(c,q);c.fillStyle=col;c.fill();if(line)pencil(c,q,seed+50);};
+  // legs
+  fill([[cx-48,1235],[cx-18,1235],[cx-20,1372],[cx-46,1372]],'#2f3e5c',1);
+  fill([[cx+18,1235],[cx+48,1235],[cx+46,1372],[cx+20,1372]],'#2f3e5c',2);
+  fill(ell(cx-40,1378,36,16,14,R,.05),'#a8402e',3);fill(ell(cx+40,1378,36,16,14,R,.05),'#a8402e',4);
+  // raincoat (ochre)
+  const coat=[[cx-70,985],[cx+70,985],[cx+92,1010],[cx+128,1250],[cx-128,1250],[cx-92,1010]];
+  // arms
+  fill([[cx-86,1000],[cx-62,1012],[cx-108,1190],[cx-132,1182]],'#e2a73a',5);
+  fill([[cx+86,1000],[cx+62,1012],[cx+108,1190],[cx+132,1182]],'#e2a73a',6);
+  fill(coat,'#eab443',7);
+  fill(ell(cx-122,1198,16,17,10,R,.05),'#f1c3a1',8);fill(ell(cx+122,1198,16,17,10,R,.05),'#f1c3a1',9);
+  // coat details: buttons, pocket line
+  c.fillStyle='#7a4d25';[1050,1100,1150].forEach(y=>{c.beginPath();c.arc(cx,y,6,0,7);c.fill();});
+  pencil(c,[[cx,995],[cx,1245]],12,'rgba(90,60,30,.5)',1.6,false);
+  // head
+  fill(ell(cx,head,74,80,22,R,.03),'#f3c8a6',10);
+  // hair bob
+  const hair=[];for(let i=0;i<=24;i++){const a=Math.PI+i/24*Math.PI;hair.push([cx+Math.cos(a)*86,head-6+Math.sin(a)*92]);}
+  hair.push([cx+86,head+40],[cx+62,head+44],[cx+60,head-6],[cx+18,head-34],[cx-40,head-22],[cx-62,head+2],[cx-62,head+44],[cx-86,head+40]);
+  fill(hair,'#3b2a24',11);
+  // face: closed eyes (deep breath), blush, small mouth "o" breathing out
+  c.strokeStyle='#3b2a24';c.lineWidth=3.5;c.lineCap='round';
+  [[cx-28,head+18],[cx+28,head+18]].forEach(([x,y])=>{c.beginPath();c.arc(x,y-4,12,.2*Math.PI,.8*Math.PI);c.stroke();});
+  c.fillStyle='rgba(226,110,90,.35)';[[cx-44,head+42],[cx+44,head+42]].forEach(([x,y])=>{c.beginPath();c.ellipse(x,y,14,9,0,0,7);c.fill();});
+  c.beginPath();c.ellipse(cx,head+52,7,9,0,0,7);c.fillStyle='#8a3d33';c.fill();
+}
+window.render=function(t){
+  ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
+  ctx.drawImage(paper,0,0);
+  ctx.globalCompositeOperation='multiply';ctx.drawImage(layer,0,0);ctx.globalCompositeOperation='source-over';
+  child(ctx,t);
+  // breath: dotted pencil spiral from mouth outward with handwritten 1..5
+  ctx.save();ctx.setLineDash([2,12]);ctx.lineCap='round';ctx.strokeStyle='rgba(50,90,140,.8)';ctx.lineWidth=4;ctx.beginPath();
+  const sp=[];for(let i=0;i<=120;i++){const u=i/120;const a=-0.2-u*5.6;const rr=200-u*120;sp.push([265+Math.cos(a)*rr,1010+Math.sin(a)*rr*.85]);}
+  sp.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.stroke();ctx.restore();
+  ctx.save();ctx.font='italic 600 46px "Noto Serif CJK SC"';ctx.fillStyle='#2f5b8a';ctx.textAlign='center';
+  [14,38,62,86,112].forEach((k,i)=>{const p=sp[k];ctx.fillText(String(i+1),p[0],p[1]-14);});ctx.restore();
+  // paper grain on top (multiply), slight
+  ctx.globalAlpha=.35;ctx.globalCompositeOperation='multiply';ctx.drawImage(paper,0,0);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';
+  // title, picture-book serif
+  ctx.textAlign='left';ctx.fillStyle='#8a6a52';ctx.font='500 28px "Noto Serif CJK SC"';ctx.fillText('情绪绘本 · 第一页',84,170);
+  ctx.fillStyle='#2b211d';ctx.font='900 94px "Noto Serif CJK SC"';ctx.fillText('生气的时候',80,292);ctx.fillText('怎么办？',80,404);
+  // small handwritten note near flame
+  ctx.font='500 32px "Noto Serif CJK SC"';ctx.fillStyle='#a3352a';ctx.fillText('心里冒出一团火',690,560);
+  ctx.strokeStyle='rgba(163,53,42,.6)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(700,575);ctx.quadraticCurveTo(660,620,640,660);ctx.stroke();
+  const cy=1530;ctx.font='700 50px "Noto Serif CJK SC"';const c1='呼——',c2='数到五，火慢慢变小了';
+  ctx.fillStyle='#2f5b8a';ctx.fillText(c1,80,cy);const w1=ctx.measureText(c1).width;ctx.fillStyle='#2b211d';ctx.fillText(c2,80+w1+4,cy);
+  if(UI)Q.ui(ctx,false);
+};
+</script></body></html>

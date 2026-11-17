@@ -1,0 +1,88 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0}canvas{display:block}</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="common.js"></script>
+<script>
+// Style: 扁平纵深 — Kurzgesagt-like layered vector: rim light, soft shadows, saturated palette, macro "zoom lens" into the cell.
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');const {W,H}=Q;const UI=location.search.includes('ui=1');
+const SUN={x:840,y:600};const LEAF={x:120,y:1420,L:580,Wd:185,a:-0.86};const LENS={x:715,y:1175,r:200};
+function toW(lx,ly){const c=Math.cos(LEAF.a),s=Math.sin(LEAF.a);return [LEAF.x+lx*c-ly*s,LEAF.y+lx*s+ly*c];}
+// rim-lit vector shape: light edge top-left, base body, soft drop shadow
+function shape(path,base,light,dark,off=7,shadow=true){
+  ctx.save();if(shadow){ctx.shadowColor='rgba(5,5,30,.45)';ctx.shadowBlur=40;ctx.shadowOffsetY=18;}path();ctx.fillStyle=light;ctx.fill();ctx.restore();
+  ctx.save();path();ctx.clip();ctx.translate(off,off);path();ctx.fillStyle=base;ctx.fill();
+  if(dark){ctx.translate(off,off);ctx.globalCompositeOperation='source-atop';ctx.save();ctx.translate(-2*off,-2*off);ctx.restore();}
+  ctx.restore();
+  if(dark){ctx.save();path();ctx.clip();ctx.translate(-off*1.2,-off*1.2);ctx.beginPath();ctx.rect(-5000,-5000,10000,10000);path();ctx.fillStyle=dark;ctx.fill('evenodd');ctx.restore();}
+}
+function wave(x0,y0,x1,y1,amp,lam,col,phase,p=1,lw=6){const dx=x1-x0,dy=y1-y0,l=Math.hypot(dx,dy),ux=dx/l,uy=dy/l,nx=-uy,ny=ux;
+  const draw=(w,a)=>{ctx.strokeStyle=col.replace('A',a);ctx.lineWidth=w;ctx.lineCap='round';ctx.beginPath();for(let d=0;d<=l*p;d+=3){const env=Math.min(1,d/60,(l*p-d)/60+0.15);const o=Math.sin(d/lam*6.283-phase)*amp*env;const x=x0+ux*d+nx*o,y=y0+uy*d+ny*o;d?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();};
+  ctx.save();ctx.filter='blur(8px)';draw(lw*2.5,.5);ctx.restore();draw(lw,1);}
+function chloro(x,y,rx,ry,a,glow){ctx.save();ctx.translate(x,y);ctx.rotate(a);
+  const p=()=>{ctx.beginPath();ctx.ellipse(0,0,rx,ry,0,0,7);};
+  if(glow){ctx.save();ctx.filter='blur(18px)';ctx.fillStyle=`rgba(190,255,120,${.55*glow})`;p();ctx.fill();ctx.restore();}
+  shape(p,'#3fae4c','#9dec74','rgba(10,70,40,.35)',6,true);
+  // grana stacks
+  ctx.save();p();ctx.clip();for(let i=-2;i<=2;i++){const gx=i*rx*.36;for(let k=0;k<4;k++){ctx.fillStyle=k%2?'#1f7a3c':'#2a8f45';const h=ry*.13;ctx.beginPath();ctx.roundRect(gx-rx*.13,-ry*.3+k*h*1.15,rx*.26,h,h/2);ctx.fill();}}
+  ctx.strokeStyle='rgba(30,110,55,.8)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-rx*.8,0);ctx.bezierCurveTo(-rx*.3,ry*.4,rx*.3,-ry*.4,rx*.8,0);ctx.stroke();ctx.restore();
+  ctx.restore();}
+window.render=function(t){
+  ctx.setTransform(1,0,0,1,0,0);ctx.filter='none';
+  let g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#16124a');g.addColorStop(.45,'#2a2a86');g.addColorStop(.75,'#1d5a8a');g.addColorStop(1,'#0e2a4a');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // stars
+  const r=Q.rng(2);for(let i=0;i<90;i++){const x=r()*W,y=r()*H*.5,s=r()*2.4+.6,tw=.5+.5*Math.sin(t*2+i);ctx.fillStyle=`rgba(255,255,255,${.25+.5*tw*r()})`;ctx.beginPath();ctx.arc(x,y,s,0,7);ctx.fill();}
+  // sun with flat halo rings
+  const pul=1+.02*Math.sin(t*2);[[330,.05],[260,.07],[200,.1],[150,.16]].forEach(([rr,a])=>{ctx.fillStyle=`rgba(255,214,120,${a})`;ctx.beginPath();ctx.arc(SUN.x,SUN.y,rr*pul,0,7);ctx.fill();});
+  shape(()=>{ctx.beginPath();ctx.arc(SUN.x,SUN.y,108,0,7);},'#ffc84a','#fff3b0','rgba(230,120,40,.35)',8,false);
+  // distant hills (layered)
+  const hill=(y0,amp,f,ph,col,lt)=>{const p=()=>{ctx.beginPath();ctx.moveTo(-30,H);for(let x=-30;x<=W+30;x+=10)ctx.lineTo(x,y0+Math.sin(x/f+ph)*amp+Math.sin(x/(f*.43)+ph*2)*amp*.35);ctx.lineTo(W+30,H);ctx.closePath();};shape(p,col,lt,null,6,true);};
+  hill(1300,40,260,1.0,'#24467e','#3a64a8');hill(1420,34,210,2.2,'#1b3866','#2f5592');hill(1520,26,170,.4,'#132a50','#244677');
+  // stem + back leaves
+  ctx.lineCap='round';ctx.strokeStyle='#1f6a3a';ctx.lineWidth=18;ctx.beginPath();ctx.moveTo(40,1720);ctx.quadraticCurveTo(70,1540,LEAF.x,LEAF.y);ctx.stroke();
+  const leafAt=(x,y,L,Wd,a,c1,c2)=>{ctx.save();ctx.translate(x,y);ctx.rotate(a);shape(()=>Q.leaf(ctx,L,Wd),c1,c2,'rgba(0,40,20,.28)',7,true);
+    ctx.save();Q.leaf(ctx,L,Wd);ctx.clip();ctx.strokeStyle='rgba(200,255,170,.45)';ctx.lineCap='round';Q.strokeVeins(ctx,Q.leafVeins(L,Wd,7,2).filter(v=>v.w>.3),5);ctx.restore();ctx.restore();};
+  leafAt(LEAF.x,LEAF.y,LEAF.L,LEAF.Wd,LEAF.a,'#36a556','#7fdc78');
+  const spot=toW(LEAF.L*.55,-10);
+  // light waves from sun to leaf spot
+  const pIn=Q.eo(Q.seg(t,0,2));
+  [['rgba(255,95,90,A)',[-26,-10],34],['rgba(110,240,120,A)',[0,0],26],['rgba(110,150,255,A)',[26,10],19]].forEach(([c,o,lam],i)=>{
+    wave(SUN.x-90+o[0],SUN.y+60+o[1],spot[0]+o[0]*.3,spot[1]+o[1]*.3,9,lam,c,t*8,pIn*.98,4);});
+  // lens connector (cone from leaf spot to lens)
+  const ang=Math.atan2(LENS.y-spot[1],LENS.x-spot[0]),d=Math.hypot(LENS.x-spot[0],LENS.y-spot[1]),beta=Math.asin(LENS.r/d);
+  ctx.fillStyle='rgba(255,255,255,.10)';ctx.beginPath();ctx.moveTo(...spot);ctx.lineTo(spot[0]+Math.cos(ang-beta)*d*Math.cos(beta),spot[1]+Math.sin(ang-beta)*d*Math.cos(beta));ctx.lineTo(spot[0]+Math.cos(ang+beta)*d*Math.cos(beta),spot[1]+Math.sin(ang+beta)*d*Math.cos(beta));ctx.fill();
+  ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.beginPath();ctx.arc(...spot,16,0,7);ctx.stroke();
+  // lens content: plant cell interior
+  const pr=()=>{ctx.beginPath();ctx.arc(LENS.x,LENS.y,LENS.r,0,7);};
+  ctx.save();ctx.shadowColor='rgba(0,0,30,.5)';ctx.shadowBlur=50;ctx.shadowOffsetY=20;pr();ctx.fillStyle='#d9f7b0';ctx.fill();ctx.restore();
+  ctx.save();pr();ctx.clip();
+  g=ctx.createRadialGradient(LENS.x-60,LENS.y-80,20,LENS.x,LENS.y,LENS.r);g.addColorStop(0,'#e9ffc6');g.addColorStop(1,'#a6e08a');ctx.fillStyle=g;ctx.fillRect(LENS.x-LENS.r,LENS.y-LENS.r,2*LENS.r,2*LENS.r);
+  // cell walls
+  ctx.strokeStyle='#5fae54';ctx.lineWidth=10;ctx.lineJoin='round';
+  const cells=[[[-260,-120],[-40,-150],[10,40],[-220,90]],[[-40,-150],[200,-170],[240,30],[10,40]],[[-220,90],[10,40],[60,260],[-200,280]],[[10,40],[240,30],[260,260],[60,260]]];
+  cells.forEach(c=>{ctx.beginPath();c.forEach(([x,y],i)=>i?ctx.lineTo(LENS.x+x,LENS.y+y):ctx.moveTo(LENS.x+x,LENS.y+y));ctx.closePath();ctx.fillStyle='rgba(255,255,255,.18)';ctx.fill();ctx.stroke();});
+  const pAbs=Q.seg(t,2.2,3.6),pRef=Q.eo(Q.seg(t,3.0,4.4));
+  // photons inside lens
+  const C1=[LENS.x-30,LENS.y-30];
+  wave(LENS.x+LENS.r,LENS.y-LENS.r*.6,C1[0]+30,C1[1]-10,10,36,'rgba(255,80,80,A)',t*8,Q.eo(Q.seg(t,1.6,2.6)),6);
+  wave(LENS.x+LENS.r*.9,LENS.y-LENS.r*.95,C1[0]+10,C1[1]-25,8,20,'rgba(90,130,255,A)',t*8,Q.eo(Q.seg(t,1.8,2.8)),6);
+  chloro(C1[0],C1[1],120,58,-.25,pAbs*(.8+.2*Math.sin(t*6)));
+  chloro(LENS.x+110,LENS.y+130,90,44,.5,0);chloro(LENS.x-150,LENS.y+150,80,40,-.7,0);
+  // green bounce
+  wave(C1[0]-10,C1[1]-50,LENS.x-LENS.r*1.4,LENS.y-LENS.r*1.5,10,28,'rgba(60,220,90,A)',t*8,pRef,7);
+  ctx.restore();
+  ctx.lineWidth=12;ctx.strokeStyle='#ffffff';pr();ctx.stroke();ctx.lineWidth=3;ctx.strokeStyle='rgba(20,20,70,.25)';ctx.beginPath();ctx.arc(LENS.x,LENS.y,LENS.r-8,0,7);ctx.stroke();
+  // green bounce outside lens continues up-left
+  wave(spot[0]-10,spot[1]-20,150,830,10,28,'rgba(90,240,110,A)',t*8,Q.eo(Q.seg(t,3.6,4.6)),7);
+  // labels as rounded pills
+  const pill=(x,y,txt,bg,fg,a)=>{ctx.save();ctx.globalAlpha=a;ctx.font='700 30px "Noto Sans CJK SC"';const w=ctx.measureText(txt).width+44;ctx.fillStyle=bg;ctx.beginPath();ctx.roundRect(x,y-40,w,58,29);ctx.fill();ctx.fillStyle=fg;ctx.fillText(txt,x+22,y);ctx.restore();};
+  pill(LENS.x-200,LENS.y+LENS.r+75,'叶绿素：吃掉红光和蓝光','#ffffff','#1b2a6b',Q.eo(Q.seg(t,2.4,3)));
+  pill(90,800,'绿光被弹出来','#3ddc6a','#0b2a18',Q.eo(Q.seg(t,4,4.6)));
+  pill(LENS.x-60,LENS.y-LENS.r-28,'放大 1000 倍','rgba(255,255,255,.16)','#fff',1);
+  // title
+  ctx.font='700 28px "Noto Sans CJK SC"';ctx.fillStyle='#ffd25a';ctx.fillText('自然科学 · 第 1 集',80,170);
+  ctx.font='900 96px "Noto Sans CJK SC"';ctx.fillStyle='#fff';ctx.fillText('叶子为什么',80,290);ctx.fillText('是',80,400);
+  ctx.fillStyle='#5be37a';ctx.fillText('绿',176,400);ctx.fillStyle='#fff';ctx.fillText('的？',272,400);
+  // caption
+  ctx.font='700 46px "Noto Sans CJK SC"';ctx.fillStyle='#fff';ctx.fillText('阳光里的绿光没被吃掉，',80,1545);ctx.fillText('它被叶子弹回了你的眼睛',80,1608);
+  if(UI)Q.ui(ctx,true);
+};
+</script></body></html>

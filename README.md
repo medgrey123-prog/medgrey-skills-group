@@ -7,6 +7,7 @@
 | 技能 | 用途 | 入口 |
 |---|---|---|
 | book-to-decision | 工具书蒸馏、长期决策知识库、候选方法与适用边界比较 | [使用说明](skills/book-to-decision/README.md) · [技能入口](skills/book-to-decision/SKILL.md) |
+| kids-knowledge-video | 儿童知识点理解与分镜、HTML/Canvas 竖屏知识短视频批量生成、AI 真乐器配乐 + 音效对点 + 旁白混音 | [使用说明](skills/kids-knowledge-video/README.md) · [技能入口](skills/kids-knowledge-video/SKILL.md) |
 
 ## 使用方法
 

@@ -1,0 +1,109 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="common.js"></script>
+<script>
+// Style: 光之剧场 — cinematic dark scientific visualisation, glowing rays + bloom.
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');const {W,H}=Q;
+const N=Q.makeNoise(11);const UI=location.search.includes('ui=1');
+// pre-render nebula background once (static texture, deterministic)
+const bg=document.createElement('canvas');bg.width=W/4;bg.height=H/4;{const b=bg.getContext('2d'),id=b.createImageData(bg.width,bg.height);
+ for(let y=0;y<bg.height;y++)for(let x=0;x<bg.width;x++){const i=(y*bg.width+x)*4;const v=N.fbm(x/70,y/70,5),w=N.fbm(x/40+9,y/40+3,4);
+  const ty=y/bg.height;id.data[i]=8+40*v*v*(1-ty)+10*w;id.data[i+1]=14+30*v*v+40*ty*w;id.data[i+2]=34+70*v*v*(1-ty*.6);id.data[i+3]=255;}
+ b.putImageData(id,0,0);}
+const dust=[];{const r=Q.rng(5);for(let i=0;i<260;i++)dust.push([r()*W,r()*H,r()*2.2+.3,r(),r()]);}
+const P={x:300,y:700};// prism centre
+const LEAF={x:590,y:1110,L:470,Wd:200,a:-0.42};
+function toWorld(lx,ly){const c=Math.cos(LEAF.a),s=Math.sin(LEAF.a);return [LEAF.x+lx*c-ly*s,LEAF.y+lx*s+ly*c];}
+function beam(x0,y0,x1,y1,w0,w1,col,alpha,blur){ctx.save();ctx.globalCompositeOperation='lighter';if(blur)ctx.filter=`blur(${blur}px)`;
+  const dx=x1-x0,dy=y1-y0,l=Math.hypot(dx,dy),nx=-dy/l,ny=dx/l;
+  const g=ctx.createLinearGradient(x0,y0,x1,y1);g.addColorStop(0,`rgba(${col},${alpha})`);g.addColorStop(1,`rgba(${col},${alpha*.85})`);
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(x0+nx*w0,y0+ny*w0);ctx.lineTo(x1+nx*w1,y1+ny*w1);ctx.lineTo(x1-nx*w1,y1-ny*w1);ctx.lineTo(x0-nx*w0,y0-ny*w0);ctx.fill();ctx.restore();}
+function glowBeam(x0,y0,x1,y1,w0,w1,col,k=1){beam(x0,y0,x1,y1,w0*4,w1*4,col,.10*k,40);beam(x0,y0,x1,y1,w0*1.8,w1*1.8,col,.25*k,12);beam(x0,y0,x1,y1,w0,w1,col,.85*k,2);beam(x0,y0,x1,y1,w0*.3,w1*.3,'255,255,255',.6*k,1);}
+function flare(x,y,r,col,a=1){ctx.save();ctx.globalCompositeOperation='lighter';const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,`rgba(255,255,255,${a})`);g.addColorStop(.12,`rgba(${col},${a*.8})`);g.addColorStop(1,`rgba(${col},0)`);ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.restore();}
+window.render=function(t){ // t in seconds, scene 0..6s; key moment ~4.6
+  ctx.setTransform(1,0,0,1,0,0);ctx.filter='none';ctx.globalCompositeOperation='source-over';
+  ctx.imageSmoothingQuality='high';ctx.drawImage(bg,0,0,W,H);
+  // vignette + warm top light
+  let g=ctx.createRadialGradient(150,300,0,150,300,1300);g.addColorStop(0,'rgba(255,200,140,.16)');g.addColorStop(1,'rgba(255,200,140,0)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  g=ctx.createRadialGradient(W/2,H*.55,H*.25,W/2,H*.55,H*.75);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.6)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // dust drifting (deterministic in t)
+  ctx.save();ctx.globalCompositeOperation='lighter';for(const d of dust){const y=(d[1]-t*18*(d[3]+.3)+H)%H,x=d[0]+Math.sin(t*.6+d[4]*6)*10;
+    const inBeam=Math.abs((y-180)-(x+60)*1.25)<200; ctx.fillStyle=`rgba(255,240,220,${(inBeam?.55:.16)*(.4+d[3])})`;ctx.beginPath();ctx.arc(x,y,d[2],0,7);ctx.fill();}ctx.restore();
+  const pIn=Q.eo(Q.seg(t,0,1.2)), pFan=Q.eo(Q.seg(t,1.0,2.4)), pAbs=Q.seg(t,2.4,4.0), pRef=Q.eo(Q.seg(t,3.2,4.6));
+  // white sun beam from top-left into prism's left face
+  const sx=-80,sy=380,ex=P.x-48,ey=P.y+8;
+  glowBeam(sx,sy,sx+(ex-sx)*pIn,sy+(ey-sy)*pIn,24,18,'255,248,235',1);
+  flare(-40,340,460,'255,215,165',.5);
+  // inside-prism white path
+  if(pIn>.95)glowBeam(ex,ey,P.x+52,P.y+38,16,14,'255,250,240',.6);
+  // continuous spectrum wedge: red (least bent) hits near the tip, violet near the base
+  const exitX=P.x+56,exitY=P.y+40;
+  const tgt=nm=>{const u=0.10+0.76*(nm-400)/300;return toWorld(LEAF.L*u,-Q.leafHalf(u,LEAF.Wd)*0.15);};
+  const NB=70;const off=window._off||(window._off=document.createElement('canvas'));off.width=W;off.height=H;const o=off.getContext('2d');o.globalCompositeOperation='lighter';
+  for(let i=0;i<NB;i++){const nm=400+300*(i+.5)/NB;const [ax,ay]=tgt(nm-2.2),[bx,by]=tgt(nm+2.2);const c=Q.wl(nm).join(',');const f=pFan;
+    o.fillStyle=`rgba(${c},.20)`;o.beginPath();o.moveTo(exitX,exitY);o.lineTo(exitX+(ax-exitX)*f,exitY+(ay-exitY)*f);o.lineTo(exitX+(bx-exitX)*f,exitY+(by-exitY)*f);o.fill();}
+  ctx.save();ctx.globalCompositeOperation='lighter';ctx.filter='blur(3px)';ctx.drawImage(off,0,0);ctx.restore();
+  const keyR=tgt(670),keyG=tgt(540),keyB=tgt(450);
+  [[670,keyR],[540,keyG],[450,keyB]].forEach(([nm,[tx,ty]])=>glowBeam(exitX,exitY,exitX+(tx-exitX)*pFan,exitY+(ty-exitY)*pFan,2.5,6,Q.wl(nm).join(','),.75));
+  // leaf
+  ctx.save();ctx.translate(LEAF.x,LEAF.y);ctx.rotate(LEAF.a);
+  // stem
+  ctx.strokeStyle='rgba(120,220,140,.6)';ctx.lineWidth=6;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(0,0);ctx.quadraticCurveTo(-40,10,-70,40);ctx.stroke();
+  ctx.save();ctx.filter='blur(30px)';Q.leaf(ctx,LEAF.L,LEAF.Wd);ctx.fillStyle='rgba(40,200,110,.45)';ctx.fill();ctx.restore();
+  Q.leaf(ctx,LEAF.L,LEAF.Wd);g=ctx.createLinearGradient(0,-LEAF.Wd,LEAF.L*.6,LEAF.Wd);g.addColorStop(0,'#2fbf6a');g.addColorStop(.5,'#0f7a44');g.addColorStop(1,'#063d2a');ctx.fillStyle=g;ctx.fill();
+  ctx.save();Q.leaf(ctx,LEAF.L,LEAF.Wd);ctx.clip();
+  // inner subsurface glow
+  g=ctx.createRadialGradient(LEAF.L*.35,-20,10,LEAF.L*.35,-20,LEAF.L*.6);g.addColorStop(0,'rgba(170,255,170,.55)');g.addColorStop(1,'rgba(0,60,30,0)');ctx.fillStyle=g;ctx.fillRect(-50,-300,LEAF.L+100,600);
+  // chloroplast cells
+  const r=Q.rng(9);for(let i=0;i<180;i++){const x=r()*LEAF.L,y=(r()-.5)*2*LEAF.Wd;const rr=4+r()*6;const pulse=.5+.5*Math.sin(t*3+i);
+    ctx.fillStyle=`rgba(150,255,140,${.10+.18*pulse*pAbs})`;ctx.beginPath();ctx.ellipse(x,y,rr*1.5,rr,r()*3,0,7);ctx.fill();}
+  ctx.strokeStyle='rgba(210,255,190,.55)';Q.strokeVeins(ctx,Q.leafVeins(LEAF.L,LEAF.Wd),6);
+  ctx.restore();
+  // rim light
+  Q.leaf(ctx,LEAF.L,LEAF.Wd);ctx.strokeStyle='rgba(200,255,200,.55)';ctx.lineWidth=2.5;ctx.stroke();
+  ctx.restore();
+  // absorption bursts for R and B
+  [[keyR,670],[keyB,450]].forEach(([[x,y],nm],i)=>{const c=Q.wl(nm).join(',');const s=Math.sin(t*5+i)*.15+.85;
+    flare(x,y,90*s*pAbs+1,c,.9*pAbs);
+    // particles being drawn in (absorbed)
+    const r=Q.rng(20+i);ctx.save();ctx.globalCompositeOperation='lighter';for(let k=0;k<26;k++){const a=r()*6.28,ph=(r()+t*.8)%1,d=(1-ph)*120;
+      ctx.fillStyle=`rgba(${c},${ph*pAbs})`;ctx.beginPath();ctx.arc(x+Math.cos(a)*d,y+Math.sin(a)*d,2.5*ph+.5,0,7);ctx.fill();}ctx.restore();});
+  // reflected green ray towards viewer/eye (bottom-left)
+  const [gx,gy]=keyG;const eyeX=200,eyeY=1330;
+  flare(gx,gy,70,'120,255,140',pRef);
+  glowBeam(gx,gy,gx+(eyeX-gx)*pRef,gy+(eyeY-gy)*pRef,5,15,'90,255,130',1.0);
+  // eye glyph
+  ctx.save();ctx.globalAlpha=Q.eo(Q.seg(t,4,4.8));ctx.translate(eyeX,eyeY);ctx.strokeStyle='rgba(235,255,240,.95)';ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(-60,0);ctx.quadraticCurveTo(0,-46,60,0);ctx.quadraticCurveTo(0,46,-60,0);ctx.stroke();
+  ctx.beginPath();ctx.arc(0,0,19,0,7);ctx.fillStyle='rgba(120,255,150,.95)';ctx.fill();ctx.beginPath();ctx.arc(0,0,8,0,7);ctx.fillStyle='#04120b';ctx.fill();ctx.restore();
+  // prism (glass, faceted)
+  ctx.save();ctx.translate(P.x,P.y);ctx.rotate(.12);const s=130;
+  const A=[0,-s],B=[s*.95,s*.62],C=[-s*.95,s*.62];
+  ctx.save();ctx.filter='blur(26px)';ctx.globalCompositeOperation='lighter';ctx.fillStyle='rgba(170,200,255,.18)';ctx.beginPath();ctx.moveTo(...A);ctx.lineTo(...B);ctx.lineTo(...C);ctx.fill();ctx.restore();
+  ctx.beginPath();ctx.moveTo(...A);ctx.lineTo(...B);ctx.lineTo(...C);ctx.closePath();
+  g=ctx.createLinearGradient(-s,-s,s,s*.6);g.addColorStop(0,'rgba(255,255,255,.30)');g.addColorStop(.45,'rgba(150,190,255,.07)');g.addColorStop(.8,'rgba(255,255,255,.04)');g.addColorStop(1,'rgba(255,255,255,.22)');ctx.fillStyle=g;ctx.fill();
+  // inner facet
+  ctx.beginPath();ctx.moveTo(0,-s*.55);ctx.lineTo(s*.6,s*.42);ctx.lineTo(-s*.6,s*.42);ctx.closePath();ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=1.5;ctx.stroke();
+  ctx.beginPath();ctx.moveTo(...A);ctx.lineTo(...B);ctx.lineTo(...C);ctx.closePath();ctx.strokeStyle='rgba(235,245,255,.8)';ctx.lineWidth=2.5;ctx.stroke();
+  ctx.globalCompositeOperation='lighter';ctx.lineCap='round';
+  g=ctx.createLinearGradient(...A,...C);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(1,'rgba(255,255,255,0)');ctx.strokeStyle=g;ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(...A);ctx.lineTo(...C);ctx.stroke();
+  // dispersion tint on exit face
+  g=ctx.createLinearGradient(...A,...B);g.addColorStop(.3,'rgba(255,90,80,.35)');g.addColorStop(.55,'rgba(90,255,130,.35)');g.addColorStop(.8,'rgba(90,120,255,.35)');ctx.strokeStyle=g;ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(...A);ctx.lineTo(...B);ctx.stroke();
+  ctx.restore();
+  // labels (thin, technical)
+  const lab=(x,y,txt,col,al)=>{ctx.save();ctx.globalAlpha=al;ctx.font='500 28px "Noto Sans CJK SC"';ctx.fillStyle=col;ctx.fillText(txt,x,y);ctx.restore();};
+  lab(150,700,'白光','rgba(255,240,220,.85)',Q.eo(Q.seg(t,.8,1.6)));
+  lab(keyR[0]-190,keyR[1]-90,'红光 · 吸收','rgba(255,150,130,.95)',pAbs);
+  lab(keyB[0]-300,keyB[1]-30,'蓝光 · 吸收','rgba(150,175,255,.95)',pAbs);
+  lab(110,1235,'绿光 · 弹回','rgba(150,255,170,.95)',pRef);
+  // title block
+  ctx.globalAlpha=1;ctx.textAlign='left';
+  ctx.font='500 28px "IBM Plex Mono"';ctx.fillStyle='rgba(180,220,255,.6)';ctx.fillText('SCIENCE  ·  01  ·  光与植物',80,170);
+  ctx.font='900 92px "Noto Sans CJK SC"';ctx.fillStyle='#fff';ctx.fillText('叶子为什么',80,290);ctx.fillText('是绿的？',80,400);
+  // caption
+  const cy=1505;ctx.font='700 50px "Noto Sans CJK SC"';const cap1='绿光',cap2='没被吃掉，被叶子弹回了眼睛';
+  ctx.fillStyle='#7dffa0';ctx.fillText(cap1,80,cy);const w1=ctx.measureText(cap1).width;ctx.fillStyle='#fff';ctx.fillText(cap2,80+w1+6,cy);
+  ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(80,cy+34,120,3);
+  if(UI)Q.ui(ctx,true);
+};
+</script></body></html>

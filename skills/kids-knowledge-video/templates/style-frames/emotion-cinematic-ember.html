@@ -1,0 +1,86 @@
+<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="common.js"></script><script src="emo.js"></script>
+<script>
+// 光之剧场·情绪版 — luminous child silhouette; anger as rising ember storm, breath cools it to blue.
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');const {W,H}=Q;const UI=location.search.includes('ui=1');
+const N=Q.makeNoise(21);
+const bg=document.createElement('canvas');bg.width=W/4;bg.height=H/4;{const b=bg.getContext('2d'),id=b.createImageData(bg.width,bg.height);
+ for(let y=0;y<bg.height;y++)for(let x=0;x<bg.width;x++){const i=(y*bg.width+x)*4;const v=N.fbm(x/60,y/60,5),w=N.fbm(x/35+4,y/35+8,4);const ty=y/bg.height;
+  id.data[i]=6+26*v*v+18*w*ty;id.data[i+1]=9+16*v*v+10*w;id.data[i+2]=22+50*v*v*(1-ty*.4);id.data[i+3]=255;}b.putImageData(id,0,0);}
+const B={x:540,y:800,s:300};
+const sil=new Path2D();{const t=document.createElement('canvas').getContext('2d');} // we build via ctx each time
+function silPath(c){Q.bust(c,B.x,B.y,B.s);}
+// particles seeded inside silhouette
+const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;const tc=tmp.getContext('2d');silPath(tc);
+const parts=[];{const r=Q.rng(77);let k=0;while(parts.length<2600&&k<60000){k++;const x=r()*W,y=500+r()*1300;if(tc.isPointInPath(x,y))parts.push([x,y,r(),r(),r()]);}}
+const dust=[];{const r=Q.rng(5);for(let i=0;i<220;i++)dust.push([r()*W,r()*H,r()*2+.3,r(),r()]);}
+const off=document.createElement('canvas');off.width=W;off.height=H;const oc=off.getContext('2d');
+function glow(c,x,y,r,col,a){const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,`rgba(${col},${a})`);g.addColorStop(1,`rgba(${col},0)`);c.fillStyle=g;c.fillRect(x-r,y-r,2*r,2*r);}
+window.render=function(t){ // key moment t=4.2: breath count 3, cool tide halfway up chest
+  ctx.setTransform(1,0,0,1,0,0);ctx.filter='none';ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
+  ctx.drawImage(bg,0,0,W,H);
+  let g=ctx.createRadialGradient(W/2,H*.5,H*.2,W/2,H*.5,H*.8);g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.7)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  const tide=1520-Q.ease(Q.seg(t,1.5,7))*900; // cool boundary rising (y)
+  const heat=1-Q.seg(t,1.5,8)*.75;
+  // ambient light: warm behind head, cool from left (breath)
+  ctx.save();ctx.globalCompositeOperation='lighter';
+  glow(ctx,B.x,B.y+150,620,'255,90,30',.22*heat);glow(ctx,170,640,560,'60,150,255',.16*Q.seg(t,1,3));ctx.restore();
+  // dust
+  ctx.save();ctx.globalCompositeOperation='lighter';for(const d of dust){const y=(d[1]-t*14*(d[3]+.3)+H)%H,x=d[0]+Math.sin(t*.5+d[4]*6)*10;ctx.fillStyle=`rgba(220,230,255,${.14*(.4+d[3])})`;ctx.beginPath();ctx.arc(x,y,d[2],0,7);ctx.fill();}ctx.restore();
+  // silhouette body: deep glass
+  ctx.save();silPath(ctx);ctx.clip();
+  g=ctx.createLinearGradient(0,B.y-200,0,1600);g.addColorStop(0,'#1a0d12');g.addColorStop(1,'#060a16');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // inner volumetric glows
+  ctx.globalCompositeOperation='lighter';
+  glow(ctx,B.x,Math.min(tide-120,1100),420,'255,80,20',.55*heat);glow(ctx,B.x-40,B.y+40,260,'255,140,40',.35*heat);
+  glow(ctx,B.x,tide+260,560,'40,140,255',.45);glow(ctx,B.x+60,tide+80,300,'120,220,255',.25);
+  // particles
+  oc.clearRect(0,0,W,H);oc.globalCompositeOperation='lighter';
+  for(const p of parts){const [x0,y0,a,b,c]=p;
+    const hot=y0<tide+ (N.n(x0/90,y0/90)-.5)*160;
+    let x,y,col,al,r;
+    if(hot){const ph=(a+t*(.18+.25*b))%1;y=y0-ph*260;x=x0+Math.sin(ph*9+c*6+t)*30*(.5+b)+ (N.n(x0/120,ph*3)-.5)*60;
+      const f=Math.sin(ph*Math.PI);const gg=70+Math.floor(150*c);col=`255,${gg},${Math.floor(20+30*c)}`;al=f*(.55+.45*b)*heat;r=1+b*2.6+(c>.97?3:0);}
+    else{x=x0+Math.sin(t*.4+c*6)*14;y=y0+Math.cos(t*.3+a*6)*10;col=c>.6?'150,225,255':'70,150,255';al=.25+.35*b;r=.8+b*1.6;}
+    oc.fillStyle=`rgba(${col},${al})`;oc.beginPath();oc.arc(x,y,r,0,7);oc.fill();}
+  ctx.filter='blur(6px)';ctx.globalAlpha=.9;ctx.drawImage(off,0,0);ctx.filter='none';ctx.globalAlpha=1;ctx.drawImage(off,0,0);
+  // boundary shimmer line
+  ctx.filter='blur(14px)';ctx.fillStyle='rgba(150,220,255,.35)';ctx.beginPath();for(let x=0;x<=W;x+=20){const y=tide+Math.sin(x/70+t*2)*16;x?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.lineTo(W,tide+30);ctx.lineTo(0,tide+30);ctx.fill();ctx.filter='none';
+  ctx.restore();
+  // rim light (edge of silhouette) via offset erosion
+  oc.globalCompositeOperation='source-over';oc.clearRect(0,0,W,H);oc.fillStyle='#fff';silPath(oc);oc.fill();
+  oc.globalCompositeOperation='destination-out';oc.save();oc.translate(7,9);silPath(oc);oc.fill();oc.restore();
+  oc.globalCompositeOperation='source-in';g=oc.createLinearGradient(0,500,0,1500);g.addColorStop(0,'rgba(255,190,140,1)');g.addColorStop(.6,'rgba(255,140,90,.8)');g.addColorStop(1,'rgba(140,200,255,.0)');oc.fillStyle=g;oc.fillRect(0,0,W,H);
+  ctx.save();ctx.globalCompositeOperation='lighter';ctx.filter='blur(10px)';ctx.drawImage(off,0,0);ctx.filter='none';ctx.drawImage(off,0,0);ctx.restore();
+  // sparks escaping above head
+  ctx.save();ctx.globalCompositeOperation='lighter';{const r=Q.rng(9);for(let i=0;i<60;i++){const ph=(r()+t*(.15+r()*.2))%1;const x=B.x+(r()-.5)*260+Math.sin(ph*8+i)*40,y=B.y-160-ph*380;
+    const a=Math.sin(ph*Math.PI)*heat*(.5+r()*.5);ctx.fillStyle=`rgba(255,${120+r()*100|0},50,${a})`;ctx.beginPath();ctx.arc(x,y,1+r()*2.4,0,7);ctx.fill();}}ctx.restore();
+  // breath stream: cool ribbon curling from top-left into the nose area
+  ctx.save();ctx.globalCompositeOperation='lighter';const bp=Q.eo(Q.seg(t,.8,3));
+  for(let k=0;k<5;k++){ctx.beginPath();const pts=[];for(let i=0;i<=60;i++){const u=i/60*bp;const x=80+u*(B.x-60-80)+Math.sin(u*7+k+t)*38*(1-u),y=520+u*(B.y+60-520)+Math.cos(u*5+k*1.3)*30*(1-u)-Math.sin(u*Math.PI)*120;pts.push([x,y]);}
+    pts.forEach((p,i)=>i?ctx.lineTo(...p):ctx.moveTo(...p));ctx.strokeStyle=`rgba(120,200,255,${.10+.04*k})`;ctx.lineWidth=10-k*1.6;ctx.filter=`blur(${6-k}px)`;ctx.stroke();}
+  ctx.filter='none';{const r=Q.rng(3);for(let i=0;i<90;i++){const u=((r()+t*.25)%1)*bp;const x=80+u*(B.x-60-80)+Math.sin(u*7+t)*38*(1-u)+(r()-.5)*40,y=520+u*(B.y+60-520)-Math.sin(u*Math.PI)*120+(r()-.5)*40;
+    ctx.fillStyle=`rgba(190,235,255,${.7*Math.sin(u/bp*Math.PI)})`;ctx.beginPath();ctx.arc(x,y,1+r()*1.8,0,7);ctx.fill();}}ctx.restore();
+  // fade lower body into dark + caption scrim
+  g=ctx.createLinearGradient(0,1240,0,1700);g.addColorStop(0,'rgba(4,6,14,0)');g.addColorStop(.5,'rgba(4,6,14,.55)');g.addColorStop(1,'rgba(4,6,14,1)');ctx.fillStyle=g;ctx.fillRect(0,1240,W,H-1240);ctx.fillStyle='rgba(4,6,14,1)';ctx.fillRect(0,1700,W,H);
+  // breath counter 1..5 (left column)
+  const cnt=Q.clamp(Math.floor(Q.seg(t,1.5,6.5)*5)+1,1,5);
+  ctx.save();ctx.textAlign='center';for(let i=0;i<5;i++){const x=110,y=1180-i*96;const on=i<cnt;
+    if(on){ctx.globalCompositeOperation='lighter';glow(ctx,x,y,60,'90,180,255',.5);ctx.globalCompositeOperation='source-over';}
+    ctx.strokeStyle=on?'rgba(170,225,255,.95)':'rgba(255,255,255,.18)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,30,0,7);ctx.stroke();
+    ctx.font='600 30px "IBM Plex Mono"';ctx.fillStyle=on?'#e6f6ff':'rgba(255,255,255,.3)';ctx.fillText(i+1,x,y+10);}ctx.restore();
+  // labels
+  const lab=(x,y,txt,col,al=1)=>{ctx.save();ctx.globalAlpha=al;ctx.font='500 28px "Noto Sans CJK SC"';ctx.fillStyle=col;ctx.fillText(txt,x,y);ctx.restore();};
+  lab(730,560,'生气 · 身体在发烫','rgba(255,170,120,.95)',heat);
+  ctx.strokeStyle='rgba(255,170,120,.4)';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(760,575);ctx.lineTo(680,660);ctx.stroke();
+  lab(64,735,'吸气 · 数到五','rgba(160,215,255,.95)');
+  // title
+  ctx.textAlign='left';ctx.font='500 28px "IBM Plex Mono"';ctx.fillStyle='rgba(255,200,170,.6)';ctx.fillText('FEELINGS  ·  01  ·  认识情绪',80,170);
+  ctx.font='900 92px "Noto Sans CJK SC"';ctx.fillStyle='#fff';ctx.fillText('生气的时候',80,290);ctx.fillText('怎么办？',80,400);
+  const cy=1520;ctx.font='700 50px "Noto Sans CJK SC"';const c1='慢慢吸气',c2='，心里的小火苗变小了';
+  ctx.fillStyle='#8fd3ff';ctx.fillText(c1,80,cy);const w1=ctx.measureText(c1).width;ctx.fillStyle='#fff';ctx.fillText(c2,80+w1,cy);
+  ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(80,cy+34,120,3);
+  if(UI)Q.ui(ctx,true);
+};
+</script></body></html>

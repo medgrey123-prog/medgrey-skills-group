@@ -1,0 +1,163 @@
+[
+ {
+  "id": "211246",
+  "name": "开场 翻开绘本纸页",
+  "event": 0.1,
+  "align": "start",
+  "gain": -14
+ },
+ {
+  "id": "211247",
+  "name": "标题 铅笔书写",
+  "event": 0.35,
+  "align": "start",
+  "gain": -20
+ },
+ {
+  "id": "701104",
+  "name": "镜头推近 轻柔 whoosh",
+  "event": 3.058,
+  "align": "peak",
+  "gain": -20
+ },
+ {
+  "id": "181563",
+  "name": "火苗燃烧 柔和噼啪（随火苗大小起伏）",
+  "event": 3.458,
+  "align": "start",
+  "gain": -22,
+  "dur": 19.5,
+  "env": "flame"
+ },
+ {
+  "id": "257518",
+  "name": "标注「脸发烫」铅笔线",
+  "event": 4.42,
+  "align": "start",
+  "gain": -20
+ },
+ {
+  "id": "257518",
+  "name": "标注「拳头握紧」铅笔线",
+  "event": 5.578,
+  "align": "start",
+  "gain": -20
+ },
+ {
+  "id": "22416",
+  "name": "心跳 怦怦",
+  "event": 7.009,
+  "align": "start",
+  "gain": -17,
+  "dur": 2.6
+ },
+ {
+  "id": "257518",
+  "name": "标注「心跳变快」铅笔线",
+  "event": 7.109,
+  "align": "start",
+  "gain": -21
+ },
+ {
+  "id": "242721",
+  "name": "火苗冒大 呼的一声",
+  "event": 10.031,
+  "align": "peak",
+  "gain": -19,
+  "dur": 3.5
+ },
+ {
+  "id": "119543",
+  "name": "「生气不是坏事」轻柔风铃",
+  "event": 12.407,
+  "align": "start",
+  "gain": -21,
+  "dur": 2.5
+ },
+ {
+  "id": "211247",
+  "name": "「停一停」画两道竖线",
+  "event": 15.928,
+  "align": "start",
+  "gain": -19
+ },
+ {
+  "id": "273979",
+  "name": "深呼吸 吸气—呼气",
+  "event": 17.275,
+  "align": "start",
+  "gain": -15
+ },
+ {
+  "id": "86114",
+  "name": "蓝色水彩铺开 慢笔刷",
+  "event": 18.466,
+  "align": "start",
+  "gain": -17
+ },
+ {
+  "id": "319418",
+  "name": "水彩晕开 小水声",
+  "event": 20.214,
+  "align": "start",
+  "gain": -23
+ },
+ {
+  "id": "242867",
+  "name": "火苗变小 轻轻吹",
+  "event": 22.242,
+  "align": "start",
+  "gain": -17
+ },
+ {
+  "id": "399538",
+  "name": "火苗变小啦 柔和风铃",
+  "event": 22.756,
+  "align": "start",
+  "gain": -22,
+  "dur": 3.0
+ },
+ {
+  "id": "211247",
+  "name": "对话气泡 铅笔描边",
+  "event": 24.962,
+  "align": "start",
+  "gain": -20
+ },
+ {
+  "id": "136778",
+  "name": "翻页到总结卡",
+  "event": 27.828,
+  "align": "start",
+  "gain": -13
+ },
+ {
+  "id": "84322",
+  "name": "闪卡翻转 1",
+  "event": 28.848,
+  "align": "peak",
+  "gain": -12
+ },
+ {
+  "id": "84322",
+  "name": "闪卡翻转 2",
+  "event": 29.782,
+  "align": "peak",
+  "gain": -12
+ },
+ {
+  "id": "84322",
+  "name": "闪卡翻转 3",
+  "event": 30.716,
+  "align": "peak",
+  "gain": -12
+ },
+ {
+  "id": "119543",
+  "name": "总结句出现 风铃",
+  "event": 31.625,
+  "align": "start",
+  "gain": -19,
+  "dur": 2.4
+ }
+]
